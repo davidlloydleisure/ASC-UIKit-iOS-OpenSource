@@ -136,7 +136,11 @@ public final class AmityUIKit4Manager {
     }
     
     static var bundle: Bundle {
+        #if SWIFT_PACKAGE
+        return Bundle.module
+        #else
         return Bundle(for: self)
+        #endif
     }
     
     /// Custom asset bundle provided by the user to override UIKit4 images

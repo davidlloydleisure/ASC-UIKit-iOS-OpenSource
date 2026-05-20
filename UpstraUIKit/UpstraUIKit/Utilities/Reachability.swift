@@ -6,6 +6,7 @@
 //  Copyright © 2564 BE Amity. All rights reserved.
 //
 
+import Foundation
 import Network
 import SystemConfiguration
 

@@ -58,7 +58,12 @@ class CoreDataDatabase {
     
     init(modelName: String, url: URL) throws {
         // Load CoreData momd model file from Bundle
-        guard let modelURL = Bundle(for: CoreDataStore.self).url(forResource: modelName, withExtension: "momd"), let model = NSManagedObjectModel(contentsOf: modelURL) else {
+        #if SWIFT_PACKAGE
+        let bundle = Bundle.module
+        #else
+        let bundle = Bundle(for: CoreDataStore.self)
+        #endif
+        guard let modelURL = bundle.url(forResource: modelName, withExtension: "momd"), let model = NSManagedObjectModel(contentsOf: modelURL) else {
             preconditionFailure("[AmitySDK] Failed to initialize coredata model: \(modelName)")
         }
         self.persistentContainer = NSPersistentContainer(name: modelName, managedObjectModel: model)
