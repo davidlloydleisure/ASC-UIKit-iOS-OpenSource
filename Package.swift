@@ -7,7 +7,7 @@ let package = Package(
     name: "AmityUIKit-OpenSource",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v14)
+        .iOS(.v15)
     ],
     products: [
         .library(
