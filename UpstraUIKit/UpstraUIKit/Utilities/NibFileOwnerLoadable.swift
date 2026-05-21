@@ -18,7 +18,12 @@ extension NibFileOwnerLoadable {
     /// Returns a `UIView` object instantiated from
     /// - Returns: `UIView`
     func instantiateFromNib() -> UIView? {
-        let nib = UINib(nibName: String(describing: Self.self), bundle: Bundle(for: Self.self))
+        #if SWIFT_PACKAGE
+        let bundle = Bundle.module
+        #else
+        let bundle = Bundle(for: Self.self)
+        #endif
+        let nib = UINib(nibName: String(describing: Self.self), bundle: bundle)
         let view = nib.instantiate(withOwner: self, options: nil).first as? UIView
         return view
     }
