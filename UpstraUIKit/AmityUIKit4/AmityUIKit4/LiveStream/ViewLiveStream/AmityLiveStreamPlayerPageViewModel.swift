@@ -45,6 +45,10 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
     
     // Loading state
     @Published var isLoading: Bool = false
+
+    // Set to true when the room/post backing this player cannot be loaded
+    // (e.g. the parent post was hidden or deleted). Drives the error state.
+    @Published var loadingFailed: Bool = false
     
     @Published var coHostInvitation: AmityInvitation?
     @Published var isJoinSheetDismissedOnAction: Bool = false
@@ -53,7 +57,6 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
     @Published var taggedProducts: [AmityProduct] = []
     @Published var pinnedProductId: String? = nil
     var previousProductCount: Int = 0
-    
     
     public init(post: AmityPostModel) {
         self.post = post
@@ -67,15 +70,28 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
         }
     }
     
-    public init(roomId: String) {
+    public init(roomId: String, isCohostInvited: Bool = false) {
         self.isLoading = true
         roomNotification = roomManager.getRoom(roomId: roomId)
             .observeOnce({ [weak self] object, error in
-                guard let self, let room = object.snapshot else { return }
-                
+                guard let self else { return }
+
+                // Room could not be loaded (e.g. parent post hidden/deleted) -> show error state
+                guard error == nil, let room = object.snapshot else {
+                    self.handleLoadFailure()
+                    return
+                }
+
                 postNotification = postManager.getPost(withId: room.referenceId ?? "")
                     .observeOnce({ [weak self] object, error in
-                        guard let self, let post = object.snapshot else { return }
+                        guard let self else { return }
+
+                        // Backing post could not be loaded (e.g. it was hidden/deleted) -> show error state
+                        guard error == nil, let post = object.snapshot, !post.isDeleted else {
+                            self.handleLoadFailure()
+                            return
+                        }
+
                         let postModel = AmityPostModel(post: post)
                         self.post = postModel
                         self.room = postModel.room
@@ -92,12 +108,13 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
                             Task.runOnMainActor {
                                 let invitation = await room.getInvitation()
                                 self.coHostInvitation = invitation
-                                if let invitation {
-                                    if invitation.status == .pending {
-                                        self.showInvitedAsCoHostSheet = true
-                                    } else {
-                                        Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamInvitationNoLongerValid.localizedString, bottomPadding: 60)
-                                    }
+                                if let invitation, invitation.status == .pending  {
+                                    self.showInvitedAsCoHostSheet = true
+                                } else if let invitation, invitation.status == .canceled ||  invitation.status == .rejected {
+                                    Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamInvitationNoLongerValid.localizedString, bottomPadding: 60)
+                                }
+                              else if isCohostInvited, invitation == nil {
+                                    Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamInvitationNoLongerValid.localizedString, bottomPadding: 60)
                                 }
                             }
                         }
@@ -108,6 +125,14 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
             })
     }
     
+    /// Surfaces the unavailable-content error state when the room/post cannot be loaded.
+    private func handleLoadFailure() {
+        isLoading = false
+        loadingFailed = true
+        postNotification?.invalidate()
+        roomNotification?.invalidate()
+    }
+
     private func setupViewModels(_ postModel: AmityPostModel) {
         let broadcasterViewModel = LiveStreamBroadcasterViewModel(role: .coHost)
         

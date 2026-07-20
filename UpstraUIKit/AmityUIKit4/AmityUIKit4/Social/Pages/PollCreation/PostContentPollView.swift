@@ -90,12 +90,10 @@ struct PostContentPollView: View {
                     if poll.isImagePoll {
                         LazyVGrid(columns: columns, spacing: 8) {
                             ForEach(options, id: \.id) { answer in
-                                let isCommunityJoined = post.targetCommunity?.isJoined ?? true
-                                let isPollSelectionDisabled = isInPendingFeed || !isCommunityJoined
-                                PollVoteImageOptionView(mode: .vote, answer: answer, totalVote: 0, highestVote: 0, isSelected: selectedAnswers.contains(answer.id), allowMultiSelection: poll.canVoteMultipleOptions, isSelectionDisabled: isPollSelectionDisabled) {
-                                    
+                                PollVoteImageOptionView(mode: .vote, answer: answer, totalVote: 0, highestVote: 0, isSelected: selectedAnswers.contains(answer.id), allowMultiSelection: poll.canVoteMultipleOptions, isSelectionDisabled: isInPendingFeed) {
+
                                     guard !poll.isVoted || !poll.isClosed else { return }
-                                    
+
                                     selectAnswer(answer: answer)
                                 } onExpand: {
                                     openImageInMediaViewer(answer: answer)
@@ -105,12 +103,9 @@ struct PostContentPollView: View {
 //                        .transition(.opacity.combined(with: .scale))
                     } else {
                         ForEach(options) { answer in
-                            
-                            let isCommunityJoined = post.targetCommunity?.isJoined ?? true
-                            let isPollSelectionDisabled = isInPendingFeed || !isCommunityJoined
                             PollVoteTextOptionView(title: answer.text, isSelected: selectedAnswers.contains(answer.id), allowMultiSelection: poll.canVoteMultipleOptions, onSelection: {
                                 guard !poll.isVoted || !poll.isClosed else { return }
-                                
+
                                 selectAnswer(answer: answer)
                             })
                         }
@@ -129,7 +124,7 @@ struct PostContentPollView: View {
                         
                         // showResultsForOwner
                         Text(poll.isVoted || poll.isClosed || viewModel.isPollClosedOnServer || (showResultsForOwner && !isPollOptionExpanded) ? AmityLocalizedStringSet.Social.pollSeeFullResultsLabel.localizedString : AmityLocalizedStringSet.Social.pollSeeMoreOptionsLabel.localized(arguments: poll.answers.count - minimumVisibleAnswersCount))
-                            .applyTextStyle(.bodyBold(Color(viewConfig.theme.secondaryColor)))
+                            .applyTextStyle(.bodyBold(Color(viewConfig.theme.baseColor)))
                         
                         Spacer()
                     }
@@ -142,11 +137,8 @@ struct PostContentPollView: View {
                 .isHidden(style == .detail || poll.answers.count <= minimumVisibleAnswersCount || isInPendingFeed || isPollOptionExpanded, remove: true)
                 
                 // Vote Poll
-                Button(action: {
+                Button {
                     AmityUserAction.perform {
-                        guard !selectedAnswers.isEmpty else { return }
-                        
-                        // If user is member
                         let isCommunityJoined = post.targetCommunity?.isJoined ?? true
                         if !isCommunityJoined {
                             AmityUIKit4Manager.behaviour.globalBehavior?.handleNonMemberAction(context: nil)
@@ -155,29 +147,19 @@ struct PostContentPollView: View {
 
                         viewModel.vote(poll: poll, answers: Array(selectedAnswers), post: post)
                     }
-                }, label: {
-                    HStack {
-                        Spacer()
-                        
-                        Text(AmityLocalizedStringSet.Social.pollVoteButton.localizedString)
-                            .applyTextStyle(.bodyBold(.white))
-                        
-                        Spacer()
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(selectedAnswers.isEmpty ? Color(viewConfig.theme.primaryColor.blend(.shade2)) : Color(viewConfig.theme.primaryColor))
-                    .contentShape(Rectangle())
-                    .cornerRadius(8, corners: .allCorners)
-                })
-                .buttonStyle(.plain)
+                } label: {
+                    Text(AmityLocalizedStringSet.Social.pollVoteButton.localizedString)
+                }
+                .buttonStyle(AmityPrimaryButtonStyle(viewConfig: viewConfig, size: .expanded))
+                .disabled(selectedAnswers.isEmpty)
                 .isHidden(poll.isClosed || viewModel.isPollClosedOnServer || poll.isVoted || showResultsForOwner, remove: true)
                 
                 HStack {
                     Group {
                         // Number of votes
                         let formattedVoteCount = viewModel.voteCountFormatter.string(from: NSNumber(value: poll.voteCount)) ?? ""
-                        Text(AmityLocalizedStringSet.Social.pollVoteCounts.localized(arguments: formattedVoteCount))
+                        let voteCountKey = poll.voteCount == 1 ? AmityLocalizedStringSet.Social.pollVoter : AmityLocalizedStringSet.Social.pollVoters
+                        Text(voteCountKey.localized(arguments: formattedVoteCount))
                             .applyTextStyle(.captionBold(Color(viewConfig.theme.baseColorShade2)))
                         
                         Text("•")
