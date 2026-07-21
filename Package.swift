@@ -11,25 +11,11 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "AmityUIKit",
-            targets: ["AmityUIKit"]
-        ),
-        .library(
             name: "AmityUIKit4",
             targets: ["AmityUIKit4"]
         ),
     ],
     targets: [
-        .target(
-            name: "AmityUIKit",
-            dependencies: [
-                "AmityUIKit4",
-                "AmitySDK",
-                "AmityLiveKit",
-                "LiveKitWebRTC"
-            ],
-            path: "UpstraUIKit/UpstraUIKit"
-        ),
         .target(
             name: "AmityUIKit4",
             dependencies: [
@@ -41,8 +27,8 @@ let package = Package(
         ),
         .binaryTarget(
             name: "AmitySDK",
-            url: "https://sdk.amity.co/sdk-release/ios-uikit-frameworks/4.21.0/AmitySDK.xcframework.zip",
-            checksum: "25e4750db1a24daee68af9aed809b21586233287b0d6c762ad47ae8afd5a57d5"
+            url: "https://sdk.amity.co/sdk-release/ios-uikit-frameworks/4.24.0/AmitySDK.xcframework.zip",
+            checksum: "4e3669364dfccb6d6634e42eae80f404488d611e95305bd32b4c6ecd5067afd6"
         ),
         .binaryTarget(
             name: "AmityLiveKit",
@@ -53,6 +39,6 @@ let package = Package(
             name: "LiveKitWebRTC",
             url: "https://sdk.amity.co/sdk-release/ios-frameworks/d7485f57/LiveKitWebRTC.xcframework.zip",
             checksum: "b4787d18a681ef7a723aed3b0b246f54eba0f3b59d56a0a35b9905286af9e004"
-        ),
+        )
     ]
 )
