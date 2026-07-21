@@ -8,14 +8,17 @@
 import SwiftUI
 import AVKit
 import SafariServices
+import AmitySDK
 
 struct LiveStreamViewerView: View {
     
     @StateObject private var viewConfig: AmityViewConfigController = AmityViewConfigController(pageId: .livestreamPlayerPage)
     @EnvironmentObject private var host: AmitySwiftUIHostWrapper
     @State private var showOverlay = false
-    @State private var playPauseOpacity = 0.0
+    @StateObject private var controls = PlayerControlsVisibility()
     @State private var isPlaying = true
+    @State private var isPlaybackActive = true
+    @State private var wasPlayingBeforeBackground = false
     @StateObject var networkMonitor = NetworkMonitor()
     @State var degreesRotating = 0.0
     
@@ -23,7 +26,6 @@ struct LiveStreamViewerView: View {
     @State private var showShareSheet = false
     @State private var isPinnedProductDismissed = false
     
-    private let debouncer = Debouncer(delay: 2)
     @ObservedObject var viewModel: LiveStreamViewerViewModel
     let liveChatFeedHeight = (UIScreen.main.bounds.height - 50) / 5
     
@@ -72,14 +74,18 @@ struct LiveStreamViewerView: View {
                 } else {
                     ZStack(alignment: .topTrailing) {
                         // Video player fills entire screen                        
-                        LiveStreamPlayerView(streamURL: URL(string: room.livePlaybackUrl ?? "")!, isPlaying: isPlaying)
+                        LiveStreamPlayerView(streamURL: URL(string: room.livePlaybackUrl ?? "")!, isPlaying: isPlaying, onPlayingChange: { isPlaybackActive = $0 })
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipped()
                             .dismissKeyboardOnDrag()
                             .onTapGesture {
-                                playPauseButtonAction()
+                                surfaceTapped()
                             }
-                        
+                            .overlay(
+                                coHostNameOverlayIfNeed(room:room),
+                                alignment: .topLeading
+                            )
+
                         HStack {
                             // Live badge overlay in original position (top-leading)
                             HStack(alignment: .center, spacing: 4) {
@@ -130,12 +136,13 @@ struct LiveStreamViewerView: View {
                         }
                         .padding(.top, 20)
                         
-                        playPauseButton
+                        centerPlayPauseButton
                     }
                     .ignoresSafeArea(.keyboard, edges: .all)
                 }
                 // Stream is not available but request to fetch stream is complete.
-            } else if viewModel.isLoaded {
+            }
+            else if viewModel.isLoaded {
                 VStack(alignment: .center) {
                     Image(AmityIcon.livestreamErrorIcon.getImageResource())
                         .resizable()
@@ -200,8 +207,12 @@ struct LiveStreamViewerView: View {
                     
                     if viewModel.post.feedType == .reviewing {
                         inPostReviewComposeBar
-                    } else if viewModel.post.targetCommunity?.isJoined == false {
+                    } else if AmityUIKitManagerInternal.shared.isGuestUser {
+                        liveChatComposeBar
+                    } else if viewModel.chatGatingCommunityIsJoined == false {
                         joinCommunityComposeBar
+                    } else if viewModel.post.targetCommunity?.isJoined == false {
+                        liveChatComposeBar
                     } else {
                         liveChatComposeBar
                             .isHidden(viewModel.post.targetUser != nil)
@@ -228,7 +239,9 @@ struct LiveStreamViewerView: View {
                         .visibleWhen(liveChatViewModel.showReactionBar)
                 }
             }
-            .isHidden(viewModel.room?.status ?? .none == .ended || viewModel.room?.status ?? .none == .recorded)
+            .isHidden(
+                viewModel.room?.status ?? .none == .ended ||
+                viewModel.room?.status ?? .none == .recorded)
             
             ZStack {
                 Color.black.opacity(0.5)
@@ -311,9 +324,12 @@ struct LiveStreamViewerView: View {
                                             Spacer(minLength: 120)
                                         }
                                     } else if case .community(_, let community) = room.target, let community {
-                                        AsyncImage(placeholder: AmityIcon.defaultCommunity.imageResource,
-                                                   url: URL(string: community.avatar?.mediumFileURL ?? ""),
-                                                   contentMode: .fill)
+                                        AsyncImage(
+                                            placeholderView: {
+                                                defaultCommunityPlaceholderView(viewConfig: viewConfig, size: 32)
+                                            },
+                                            url: URL(string: community.avatar?.mediumFileURL ?? ""),
+                                            contentMode: .fill)
                                         .frame(width: 32, height: 32)
                                         .clipShape(Circle())
                                         
@@ -359,7 +375,7 @@ struct LiveStreamViewerView: View {
                                     } else if room.targetType == "user", let user = room.creator {
                                         AmityUserProfileImageView(
                                             displayName: user.displayName ?? "",
-                                            avatarURL: URL(string: user.avatar?.mediumFileURL ?? "")
+                                            avatarURL: user.resolvedAvatarURL(size: .medium)
                                         )
                                         .frame(width: 32, height: 32)
                                         .clipShape(Circle())
@@ -445,6 +461,18 @@ struct LiveStreamViewerView: View {
             bannedVC.modalPresentationStyle = .overFullScreen
             self.host.controller?.navigationController?.pushViewController(bannedVC, animated: false)
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            wasPlayingBeforeBackground = isPlaying
+            if isPlaying {
+                isPlaying = false
+                viewModel.watchMinuteTracker.pauseTracking()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            guard wasPlayingBeforeBackground else { return }
+            isPlaying = true
+            viewModel.watchMinuteTracker.resumeTracking()
+        }
         .environmentObject(viewConfig)
     }
     
@@ -477,14 +505,6 @@ struct LiveStreamViewerView: View {
                     .padding(.trailing, 16)
                     .padding(.vertical, 8)
                     .background(Color.black)
-                    .onTapGesture {
-                        AmityUserAction.perform(host: host) {
-                            if !liveChatViewModel.isCommunityMember {
-                                AmityUIKitManagerInternal.shared.behavior.globalBehavior?.handleNonMemberAction(context: .init(host: host))
-                                return
-                            }
-                        }
-                    }
                     .onAppear {
                         liveChatViewModel.productCount = viewModel.productTags.count
                         liveChatViewModel.showProductTagAction = {
@@ -634,44 +654,86 @@ struct LiveStreamViewerView: View {
         }
     }
     
-    private var playPauseButton: some View {
+    @ViewBuilder
+    private func coHostNameOverlayIfNeed(room: AmityRoom) -> some View {
+        // The viewer plays a single composited stream where the co-host occupies the
+        // bottom half. Pin the name pill to the top-leading corner of that bottom half.
+        if let coHost = viewModel.coHostUser, room.status == .live {
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    HStack(spacing: 4) {
+                        Text(coHost.displayName ?? AmityLocalizedStringSet.Social.livestreamCoHost.localizedString)
+                            .applyTextStyle(.body(.white))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+
+                        Image(AmityIcon.brandBadge.imageResource)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 16, height: 16)
+                            .isHidden(!coHost.isBrand)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 10)
+                    .background(Color.black.opacity(0.7))
+                    .cornerRadius(20, corners: .allCorners)
+
+                    // Reserve right-side space so a long name truncates with an
+                    // ellipsis instead of overrunning the screen / reaction column.
+                    Spacer(minLength: 80)
+                }
+                .padding(.leading, 16)
+                .offset(y: geometry.size.height / 2 + 16)
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    private var centerPlayPauseButton: some View {
         VStack {
             Spacer()
-            
-            HStack {
-                Spacer()
-                
-                Image(isPlaying ? AmityIcon.LiveStream.pauseIcon.imageResource : AmityIcon.LiveStream.playIcon.imageResource)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 40, height: 40)
-                   
-                Spacer()
+            Button(action: { togglePlayPause() }) {
+                PlayPauseButton(isPlaying: isPlaybackActive)
             }
-            
+            .buttonStyle(.plain)
             Spacer()
         }
-        .animation(.easeInOut(duration: 0.3), value: playPauseOpacity)
-        .opacity(playPauseOpacity)
-        .allowsHitTesting(false)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.easeInOut(duration: 0.3), value: controls.isVisible)
+        .opacity(controls.isVisible ? 1 : 0)
+        .allowsHitTesting(controls.isVisible)
     }
-    
-    func playPauseButtonAction() {
-        if playPauseOpacity == 1.0 {
-            isPlaying.toggle()
-            
-            // Pause/Resume watch time tracking accordingly
-            if isPlaying {
-                viewModel.watchMinuteTracker.resumeTracking()
-            } else {
-                viewModel.watchMinuteTracker.pauseTracking()
-            }
+
+    func surfaceTapped() {
+        controls.tapOverlay(isPlaying: isPlaying)
+    }
+
+    func togglePlayPause() {
+        isPlaying.toggle()
+        if isPlaying {
+            viewModel.watchMinuteTracker.resumeTracking()
+        } else {
+            viewModel.watchMinuteTracker.pauseTracking()
         }
-        
-        playPauseOpacity = 1.0
-        
-        debouncer.run {
-            playPauseOpacity = 0.0
-        }
+        controls.show(autoHide: isPlaying)
+    }
+}
+
+struct PlayPauseButton: View {
+    let isPlaying: Bool
+    var buttonSize: CGFloat = 64
+    var iconSize: CGFloat = 32
+
+    var body: some View {
+        Image(isPlaying
+            ? AmityIcon.LiveStream.pauseIcon.imageResource
+            : AmityIcon.LiveStream.playIcon.imageResource)
+            .resizable()
+            .scaledToFit()
+            .frame(width: iconSize, height: iconSize)
+            .offset(x: isPlaying ? 0 : 2)
+            .frame(width: buttonSize, height: buttonSize)
+            .background(Color.black.opacity(0.5))
+            .clipShape(Circle())
     }
 }

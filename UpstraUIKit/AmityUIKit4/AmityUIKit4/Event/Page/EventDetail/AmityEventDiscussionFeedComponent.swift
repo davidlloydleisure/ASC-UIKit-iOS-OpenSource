@@ -15,8 +15,11 @@ struct AmityEventDiscussionFeedComponent: View {
     
     @StateObject private var viewConfig: AmityViewConfigController = .init(pageId: .socialHomePage)
     
-    init(viewModel: AmityEventDetailPageViewModel) {
+    private let page: AmityEventDetailPage
+    
+    init(viewModel: AmityEventDetailPageViewModel, page: AmityEventDetailPage) {
         self.viewModel = viewModel
+        self.page = page
     }
     
     var body: some View {
@@ -41,7 +44,12 @@ struct AmityEventDiscussionFeedComponent: View {
         LazyVStack(spacing: 0) {
             ForEach(viewModel.posts, id: \.postId) { post in
                 VStack(spacing: 0 ) {
-                    AmityPostContentComponent(post: post, context: .init(shouldHideTarget: true, event: viewModel.event))
+                    AmityPostContentComponent(post: post, context: .init(shouldHideTarget: true, event: viewModel.event), onTapAction: { tapContext in
+                        guard let event = viewModel.event else { return }
+                        let category = tapContext?.category ?? .general
+                        let behaviorContext = AmityEventDetailPageBehavior.Context(page: page, event: event, showPollResult: tapContext?.showPollResults ?? false)
+                        AmityUIKit4Manager.behaviour.eventDetailPageBehavior?.goToPostDetailPage(context: behaviorContext, post: AmityPostModel(post: post), category: category)
+                    })
                     
                     Rectangle()
                         .fill(Color(viewConfig.theme.baseColorShade4))
@@ -65,7 +73,7 @@ struct AmityEventDiscussionFeedComponent: View {
         HStack {
             Spacer()
             
-            AmityEmptyStateView(configuration: .init(image: AmityIcon.communityProfileEmptyPostIcon.rawValue, title: AmityLocalizedStringSet.Social.eventDiscussionFeedNoPostsYet.localizedString, subtitle: nil, iconSize: .init(width: 60, height: 60), renderingMode: .original, imageBottomPadding: 12, tapAction: nil))
+            AmityEmptyStateView(configuration: .init(image: AmityIcon.communityProfileEmptyPostIcon.rawValue, title: AmityLocalizedStringSet.Social.eventDiscussionFeedNoPostsYet.localizedString, subtitle: nil, iconSize: .init(width: 60, height: 60), renderingMode: .template, iconTintColor: viewConfig.theme.baseColorShade4, imageBottomPadding: 12, tapAction: nil))
             
             Spacer()
         }

@@ -16,6 +16,23 @@ public enum PageId: String {
     
     // MARK: - Chat
     case liveChatPage = "live_chat"
+    case chatHomePage = "chat_home_page"
+    case searchChannelPage = "search_channel_page"
+    case createConversationPage = "create_conversation_page"
+    case selectGroupMemberPage = "select_group_member_page"
+    case createGroupChatPage = "create_group_chat_page"
+    case archivedChatPage = "archived_chat_page"
+    case chatPage = "chat_page"
+    case groupChatPage = "group_chat_page"
+    case groupSettingPage = "group_setting_page"
+    case groupMemberListPage = "group_member_list_page"
+    case addGroupMemberPage = "add_group_member_page"
+    case bannedGroupMemberListPage = "banned_group_member_list_page"
+    case editGroupProfilePage = "edit_group_profile_page"
+    case editGroupNotificationPage = "edit_group_notification_page"
+    case editGroupMemberPermissionPage = "edit_group_member_permission_page"
+    case groupNotificationPreferencePage = "group_notification_preference_page"
+    case notificationPreferencePage = "notification_preference_page"
     
     // MARK: - Social
     case socialHomePage = "social_home_page"
@@ -74,6 +91,8 @@ public enum PageId: String {
     case upcomingEventsPage = "upcoming_events_page"
     case pastEventsPage = "past_events_page"
     case eventAttendeesPage = "event_attendees_page"
+
+    case visitorUsageLimitPage = "visitor_usage_limit_page"
 }
 
 public enum ComponentId: String {
@@ -87,11 +106,17 @@ public enum ComponentId: String {
     case messageList = "message_list"
     case liveChatHeader = "live_chat_header"
     case reactionList = "reaction_list"
+    case chatHomeTopNavigation = "chat_home_top_navigation"
+    case chatListComponent = "chat_list_component"
+    case groupMemberActionComponent = "group_member_action_component"
+    case conversationChatUserActionComponent = "conversation_chat_user_action_component"
     
     // MARK: - Social
     case socialHomePageTopNavigationComponent = "top_navigation"
     case emptyNewsFeedComponent = "empty_newsfeed"
     case newsFeedComponent = "newsfeed_component"
+    case forYouFeedComponent = "amity_for_you_feed_component"
+    case feedCaughtUpComponent = "amity_feed_caught_up_component"
     case postContentComponent = "post_content"
     case globalFeedComponent = "global_feed_component"
     case myCommunitiesComponent = "my_communities"
@@ -188,8 +213,12 @@ public enum ElementId: String {
     case notificationTrayButton = "notification_tray_button"
     case postCreationButton = "post_creation_button"
     case newsFeedButton = "newsfeed_button"
+    case forYouButton = "for_you_button"
+    case followingButton = "following_button"
     case exploreButton = "explore_button"
-    case clipsButton = "clipsfeed_button"
+    case clipsFeedButton = "clipsfeed_button"
+    case clipsButton = "clips_button"
+    case eventsButton = "events_button"
     case myCommunitiesButton = "my_communities_button"
     
     // EmptyNewsFeed
@@ -244,6 +273,8 @@ public enum ElementId: String {
     case createStoryButton = "create_story_button"
     case createPollButton = "create_poll_button"
     case createLivestreamButton = "create_livestream_button"
+    case createClipButton = "create_clip_button"
+    case createEventButton = "create_event_button"
     
     // PostTargetSelectionPage
     case myTimelineAvatar = "my_timeline_avatar"

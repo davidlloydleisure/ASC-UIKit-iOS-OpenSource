@@ -101,6 +101,8 @@ public struct AmityPollPostComposerPage: AmityPageView {
                             .applyTextStyle(.body(Color(viewConfig.theme.primaryColor)))
                     }
                     .buttonStyle(.plain)
+                    .lineLimit(1)
+                    .frame(minWidth: 40)
                     .disabled(!isInputValid)
                 }
                 
@@ -236,13 +238,25 @@ public struct AmityPollPostComposerPage: AmityPageView {
         .background(Color(viewConfig.theme.backgroundColor).ignoresSafeArea())
         .updateTheme(with: viewConfig)
         .showToast(isPresented: $isToastVisible, style: .warning, message: pollPostErrorMessage, bottomPadding: 24)
+        .onChange(of: editorViewModel.reachMentionLimit) { reached in
+            if reached {
+                let alert = UIAlertController(
+                    title: AmityLocalizedStringSet.Social.reachMentionLimitTitle.localizedString,
+                    message: AmityLocalizedStringSet.Social.reachMentionLimitMessage.localizedString,
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: AmityLocalizedStringSet.Chat.okButton.localizedString, style: .cancel))
+                host.controller?.present(alert, animated: true)
+                editorViewModel.reachMentionLimit = false
+            }
+        }
     }
     
     @ViewBuilder
     var loadingIndicator: some View {
         VStack {
-            Color.white.opacity(0.3)
-            
+            Color(viewConfig.theme.backgroundColor).opacity(0.3)
+
             ToastView(message: AmityLocalizedStringSet.Social.pollCreatePostingToast.localizedString, style: .loading)
                 .padding(.bottom, 24)
         }

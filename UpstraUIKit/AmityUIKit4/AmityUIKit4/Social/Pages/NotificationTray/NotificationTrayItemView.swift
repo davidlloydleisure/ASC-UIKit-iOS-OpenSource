@@ -22,8 +22,9 @@ struct NotificationTraySectionTitle: View {
 }
 
 struct NotificationTrayItemView: View {
-    
+
     @EnvironmentObject var viewConfig: AmityViewConfigController
+    @Environment(\.colorScheme) private var colorScheme
     let item: NotificationItem
     
     var body: some View {
@@ -73,11 +74,20 @@ struct NotificationTrayItemView: View {
                 .applyTextStyle(.caption(Color(viewConfig.theme.baseColorShade2)))
         }
         .padding(16)
-        .background(
-            Color(
-                item.isSeen
-                ? viewConfig.theme.backgroundColor
-                : viewConfig.theme.primaryColor.blend(.shade4)))
+        .background(unreadRowBackground)
+    }
+
+    @ViewBuilder
+    private var unreadRowBackground: some View {
+        if item.isSeen {
+            Color(viewConfig.theme.backgroundColor)
+        } else {
+            Color(colorScheme == .dark
+                  //Figma display 0.3 but QA, designer would like set this on ios 0.2
+                  ? viewConfig.theme.primaryColor.withAlphaComponent(0.2)
+                  : viewConfig.theme.primaryColor.blend(.shade3).withAlphaComponent(0.3))
+                
+        }
     }
 }
 
@@ -93,7 +103,7 @@ struct NotificationTrayInvitationItemView: View {
             let inviter = invitation.inviterUser
             AmityUserProfileImageView(
                 displayName: inviter?.displayName ?? "",
-                avatarURL: URL(string: inviter?.avatar?.mediumFileURL ?? "")
+                avatarURL: inviter?.resolvedAvatarURL(size: .medium)
             )
             .frame(width: 32, height: 32)
             .clipShape(Circle())

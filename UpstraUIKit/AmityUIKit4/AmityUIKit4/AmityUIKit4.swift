@@ -447,11 +447,15 @@ final class AmityUIKitManagerInternal: NSObject {
                                sessionHandler: SessionHandler) async throws {
         
         try await client.loginAsVisitor(authSignature: authSignature, authSignatureExpiresAt: authSignatureExpiresAt, sessionHandler: sessionHandler)
+        // Subscribe to visitor usage-limit events. SDK only emits for visitor/bot users.
+        AmityVisitorUsageLimitObserver.shared.start()
+        
         didUpdateClient()
     }
     
     func unregisterDevice() {
         AmityFileCache.shared.clearCache()
+        AmityVisitorUsageLimitObserver.shared.stop()
         self._client?.logout()
     }
     
@@ -524,27 +528,18 @@ final class AmityUIKitManagerInternal: NSObject {
         
         // Initialize AdEngine so that we can start fetching ad settings here
         let _ = AdEngine.shared
-        
+
         Task {
             await fetchShareableLinkConfig()
         }
     }
     
-    func canShareLink(for type: ShareableLinkType) -> Bool {
-        guard let shareableLinkConfig else { return false }
-        
-        let pattern = shareableLinkConfig.patterns[type.patternKey] ?? ""
-        return !pattern.isEmpty
+    func canShareLink(for type: AmitySharableContentType) -> Bool {
+        return shareableLinkConfig?.isEnabled(type) ?? false
     }
-    
-    func generateShareableLink(for type: ShareableLinkType, id: String) -> String {
-        guard let shareableLinkConfig else { return "" }
-        
-        let domain = shareableLinkConfig.domain
-        let pattern = shareableLinkConfig.patterns[type.patternKey] ?? ""
-        
-        let finalPattern = pattern.replacingOccurrences(of: type.placeholderPattern, with: id)
-        return domain + finalPattern
+
+    func generateShareableLink(for type: AmitySharableContentType, id: String) -> String {
+        return shareableLinkConfig?.generateLink(type, referenceId: id) ?? ""
     }
     
     @MainActor
@@ -583,35 +578,3 @@ extension AmityClient {
     }
 }
 
-enum ShareableLinkType: String {
-    case post
-    case community
-    case livestream
-    case user
-    
-    var patternKey: String {
-        switch self {
-        case .post:
-            return "posts"
-        case .community:
-            return "communities"
-        case .livestream:
-            return "livestreams"
-        case .user:
-            return "users"
-        }
-    }
-    
-    var placeholderPattern: String {
-        switch self {
-        case .post:
-            return "{postId}"
-        case .community:
-            return "{communityId}"
-        case .user:
-            return "{userId}"
-        case .livestream:
-            return "{livestreamId}"
-        }
-    }
-}

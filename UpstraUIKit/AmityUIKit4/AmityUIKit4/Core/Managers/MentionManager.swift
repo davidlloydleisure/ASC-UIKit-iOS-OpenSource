@@ -41,7 +41,7 @@ public struct AmityMentionUserModel {
     init(user: AmityUser) {
         self.userId = user.userId
         self.displayName = user.displayName ?? AmityLocalizedStringSet.General.anonymous.localizedString
-        self.avatarURL = user.avatar?.fileURL ?? ""
+        self.avatarURL = user.resolvedAvatarURL?.absoluteString ?? ""
         self.isGlobalBan = user.isGlobalBanned
         self.isChannelMention = false
         self.isBrand = user.isBrand
@@ -87,7 +87,7 @@ final public class MentionManager: MentionTextEditorDelegate {
     }
     
     // Default Attributes used for text while typing
-    var typingAttributes: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 15), .foregroundColor: UIColor(hex: "#ffffff")] {
+    var typingAttributes: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 15), .foregroundColor: AmityFixedColor.shared.white] {
         didSet {
             mentionEditor.typingAttributes = typingAttributes
         }

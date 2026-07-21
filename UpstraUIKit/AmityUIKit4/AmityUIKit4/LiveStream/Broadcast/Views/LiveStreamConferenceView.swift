@@ -50,6 +50,10 @@ struct LiveStreamConferenceView: View {
         self.broadcasterViewModel = broadcasterViewModel
     }
     
+    private var isCoHostManageProductTagDisable: Bool {
+        return viewModel.participantRole == .coHost && !viewModel.isCoHostManageProductTagEnable
+    }
+    
     public var body: some View {
         ZStack(alignment: .top) {
             
@@ -142,6 +146,11 @@ struct LiveStreamConferenceView: View {
                                         showProductTagSheet = false
                                     },
                                     onAddProducts: {
+                                        guard !isCoHostManageProductTagDisable else {
+                                            showCoHostProductTagRevokedAlert()
+                                            return
+                                        }
+
                                         previousProductCount = manageVM.taggedProducts.count
                                         let productSelectionComponent = AmityProductTagSelectionComponent(
                                             pageId: .createLivestreamPage,
@@ -152,6 +161,12 @@ struct LiveStreamConferenceView: View {
                                                 UIApplication.topViewController()?.dismiss(animated: true)
                                             },
                                             onDone: {
+                                                
+                                                guard !isCoHostManageProductTagDisable else {
+                                                    showCoHostProductTagRevokedAlert()
+                                                    return
+                                                }
+                                                
                                                 if viewModel.currentState.isStreaming, manageVM.taggedProducts.count > previousProductCount {
                                                     // Sync to parent before API call
                                                     viewModel.taggedProducts = manageVM.taggedProducts
@@ -174,6 +189,7 @@ struct LiveStreamConferenceView: View {
                                                 }
                                             },
                                             onTagChanges: { newlySelectedProducts in
+                                                guard !isCoHostManageProductTagDisable else { return }
                                                 let existingIds = Set(manageVM.taggedProducts.map { $0.productId })
                                                 let newProducts = newlySelectedProducts.filter { !existingIds.contains($0.productId) }
                                                 manageVM.taggedProducts = manageVM.taggedProducts + newProducts
@@ -185,6 +201,13 @@ struct LiveStreamConferenceView: View {
                                         UIApplication.topViewController()?.present(hostController, animated: true)
                                     },
                                     onPinToggle: { productId, isPinned in
+                                        
+                                        guard !isCoHostManageProductTagDisable else {
+                                            showCoHostProductTagRevokedAlert()
+                                            return
+                                        }
+
+                                        
                                         let livestreamPostId = viewModel.createdPost?.childrenPosts.first?.postId ?? viewModel.createdPost?.postId
                                         if viewModel.currentState.isStreaming, let postId = livestreamPostId {
                                             Task {
@@ -209,6 +232,12 @@ struct LiveStreamConferenceView: View {
                                         }
                                     },
                                     onProductRemove: { productId in
+                                        
+                                        guard !isCoHostManageProductTagDisable else {
+                                            showCoHostProductTagRevokedAlert()
+                                            return
+                                        }
+                                        
                                         let livestreamPostId = viewModel.createdPost?.childrenPosts.first?.postId ?? viewModel.createdPost?.postId
                                         if viewModel.currentState.isStreaming, let postId = livestreamPostId {
                                             Task {
@@ -278,6 +307,14 @@ struct LiveStreamConferenceView: View {
                                 UIApplication.topViewController()?.present(hostController, animated: true)
                             }
                             } // end Task
+                        }
+                    }
+                    .onChange(of: viewModel.hasSomeArchiveProduct) { hasSomeArchiveProduct in
+                        if hasSomeArchiveProduct {
+                            DispatchQueue.main.asyncAfter(deadline: .now()+0.5) {
+                                                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.postComposerProductsUnavailableToast.localizedString, bottomPadding: 60)
+                                viewModel.hasSomeArchiveProduct = false
+                            }
                         }
                     }
                     .sheet(isPresented: $showCoHostInviteSheet, content: {
@@ -784,7 +821,7 @@ struct LiveStreamConferenceView: View {
                             .applyTextStyle(.captionBold(.white))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
-                            .background(Color(hex: "#FF305A"))
+                            .background(Color(AmityFixedColor.shared.live))
                             .cornerRadius(4, corners: .allCorners)
                             .visibleWhen(viewModel.currentState.isStreaming)
                     }
@@ -852,9 +889,11 @@ struct LiveStreamConferenceView: View {
                     }
                 }
             } else if case .community(_, let community) = viewModel.createdRoom?.target, let community {
-                AsyncImage(placeholder: AmityIcon.defaultCommunity.imageResource,
-                           url: URL(string: community.avatar?.mediumFileURL ?? ""),
-                           contentMode: .fill)
+                AsyncImage(
+                    placeholderView: { defaultCommunityPlaceholderView(viewConfig: viewConfig, size: 32) },
+                    url: URL(string: community.avatar?.mediumFileURL ?? ""),
+                    contentMode: .fill
+                )
                 .frame(width: 32, height: 32)
                 .clipShape(Circle())
                 
@@ -900,7 +939,7 @@ struct LiveStreamConferenceView: View {
             } else if viewModel.createdRoom?.targetType == "user", let user = viewModel.createdRoom?.creator {
                 AmityUserProfileImageView(
                     displayName: user.displayName ?? "",
-                    avatarURL: URL(string: user.avatar?.mediumFileURL ?? "")
+                    avatarURL: user.resolvedAvatarURL(size: .medium)
                 )
                 .frame(width: 32, height: 32)
                 .clipShape(Circle())
@@ -1385,11 +1424,27 @@ struct LiveStreamConferenceView: View {
                             }
                         }
                 } else {
-                    Text(viewModel.invitedCoHost.user?.displayName ?? AmityLocalizedStringSet.Social.livestreamCoHost.localizedString)
-                        .applyTextStyle(.titleBold(.white))
                     
+                    let isCoHostBrand = viewModel.invitedCoHost.user?.isBrand ?? false
+                    let isCurrentUserBrand = AmityUIKitManagerInternal.shared.client.user?.snapshot?.isBrand ?? false
+                    let isBrandUser = viewModel.participantRole == .host ? isCoHostBrand : isCurrentUserBrand
+                    
+                    HStack(spacing: 4)  {
+                        Text(viewModel.invitedCoHost.user?.displayName ?? AmityLocalizedStringSet.Social.livestreamCoHost.localizedString)
+                            .applyTextStyle(.titleBold(.white))
+                            .lineLimit(1)
+                        
+                       
+                        Image(AmityIcon.brandBadge.imageResource)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 16, height: 16)
+                            .isHidden(!isBrandUser)
+                    }.padding(.horizontal, 16)
+
                     CoHostBadgeView()
                         .padding(.top, 8)
+                    
                     
                     Rectangle()
                         .fill(Color(viewConfig.defaultDarkTheme.baseColorShade4))
@@ -1448,6 +1503,16 @@ struct LiveStreamConferenceView: View {
             })
             .ignoresSafeArea(edges: .bottom)
         }
+    }
+    private func showCoHostProductTagRevokedAlert() {
+        host.controller?.dismiss(animated: true) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                liveStreamAlert.show(for: .coHostProductTagRevoked(action: {
+                    LiveStreamAlert.shared.hide()
+                }))
+            }
+        }
+        showProductTagSheet = false
     }
 }
 
