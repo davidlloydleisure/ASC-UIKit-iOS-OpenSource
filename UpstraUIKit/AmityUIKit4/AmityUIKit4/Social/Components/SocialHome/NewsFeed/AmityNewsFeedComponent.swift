@@ -67,7 +67,7 @@ public struct AmityNewsFeedComponent: AmityComponentView {
                 .refreshable {
                     isCurrentFeedEmpty = false
                     // just to show/hide story view
-                    //viewModel.loadStoryTargets() we do not support stories in Club Life
+                    // viewModel.loadStoryTargets() we do not support stories in Club Life
                     viewModel.loadRoomPosts()
                     // refresh global feed
                     // swiftUI cannot update properly if we use nested Observable Object
