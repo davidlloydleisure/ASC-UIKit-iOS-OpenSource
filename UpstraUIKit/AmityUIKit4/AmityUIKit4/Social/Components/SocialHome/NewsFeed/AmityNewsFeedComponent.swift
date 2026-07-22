@@ -41,11 +41,7 @@ public struct AmityNewsFeedComponent: AmityComponentView {
         }
         .updateTheme(with: viewConfig)
         .onReceive(postFeedViewModel.$postItems.combineLatest(postFeedViewModel.$feedLoadingStatus)) { items, status in
-            if status == .loaded && items.isEmpty {
-                isCurrentFeedEmpty = true
-            } else if !items.isEmpty {
-                isCurrentFeedEmpty = false
-            }
+            isCurrentFeedEmpty = status == .loaded && items.isEmpty
         }
         .onReceive(NotificationCenter.default.publisher(for: .forceRefreshNewsfeed)) { _ in
             refreshNewsfeed()
@@ -71,7 +67,7 @@ public struct AmityNewsFeedComponent: AmityComponentView {
                 .refreshable {
                     isCurrentFeedEmpty = false
                     // just to show/hide story view
-                    viewModel.loadStoryTargets()
+                    // viewModel.loadStoryTargets() we do not support stories in Club Life
                     viewModel.loadRoomPosts()
                     // refresh global feed
                     // swiftUI cannot update properly if we use nested Observable Object
@@ -86,6 +82,8 @@ public struct AmityNewsFeedComponent: AmityComponentView {
     @ViewBuilder
     func getPostListView() -> some View {
         List {
+            // We do not support stories in Club Life
+            /*
             if (!viewModel.storyTargets.isEmpty || !viewModel.roomPosts.isEmpty) {
                 VStack(spacing: 0) {
                     AmityStoryTabComponent(type: .globalFeed, pageId: pageId)
@@ -111,6 +109,7 @@ public struct AmityNewsFeedComponent: AmityComponentView {
                 .listRowInsets(EdgeInsets())
                 .modifier(HiddenListSeparator())
             }
+            */
             
             if postFeedViewModel.postItems.isEmpty {
                 ForEach(0..<5, id: \.self) { index in
