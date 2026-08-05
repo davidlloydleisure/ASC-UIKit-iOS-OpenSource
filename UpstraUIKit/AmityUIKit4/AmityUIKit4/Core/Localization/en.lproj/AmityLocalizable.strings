@@ -1355,7 +1355,7 @@
 "amity_chat_group_member_permissions" = "Member permissions";
 "chat_group_setting_tile_all_members" = "All members";
 "amity_chat_group_banned_members" = "Banned users";
-"amity_chat_group_leave" = "Leave group";
+"amity_chat_group_leave" = "Leave Chat";
 "amity_chat_group_notification_default_label" = "Default";
 "amity_chat_group_notification_silent_label" = "Silent";
 "amity_chat_group_notification_subscribe_label" = "Subscribe";

@@ -98,6 +98,8 @@ public struct AmityChatMessageComposeBar: AmityComponentView {
 
             HStack(alignment: .bottom, spacing: 12) {
 
+                // We have to disable attachment for any member in chat regardless the role.
+                /*
                 if !isEditing {
                     AmityButton(
                         variant: .icon,
@@ -121,6 +123,7 @@ public struct AmityChatMessageComposeBar: AmityComponentView {
                     }
                     .padding(.bottom, composerButtonBottomInset)
                 }
+                */
 
                 AmityMessageTextEditorView(textEditorViewModel, text: $input, mentionData: $mentionData, mentionedUsers: $mentionedUsers, textViewHeight: 34)
                     .displayInlineSuggestionView(isGroupChat)

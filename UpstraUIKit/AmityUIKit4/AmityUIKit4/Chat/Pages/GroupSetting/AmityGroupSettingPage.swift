@@ -277,6 +277,8 @@ public struct AmityGroupSettingPage: AmityPageView {
                     }
                     .buttonStyle(.plain)
                 } else {
+                    // We do not show Group Settings for users
+                    /*
                     sectionHeader(AmityLocalizedStringSet.Chat.GroupSetting.sectionGroup.localizedString)
                     settingTile(icon: AmityIcon.DesignSystem.userGroupS.imageResource, title: AmityLocalizedStringSet.Chat.GroupSetting.tileAllMembers.localizedString) {
                         guard let channel = viewModel.channel else { return }
@@ -288,6 +290,7 @@ public struct AmityGroupSettingPage: AmityPageView {
                     AmityDivider(variant: .post, viewConfig: viewConfig)
 
                     Spacer().frame(height: 24)
+                    */
 
                     sectionHeader(AmityLocalizedStringSet.Chat.GroupSetting.sectionPreferences.localizedString)
                     settingTile(
