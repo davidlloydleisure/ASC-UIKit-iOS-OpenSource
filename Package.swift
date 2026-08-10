@@ -27,8 +27,8 @@ let package = Package(
         ),
         .binaryTarget(
             name: "AmitySDK",
-            url: "https://sdk.amity.co/sdk-release/ios-uikit-frameworks/4.24.0/AmitySDK.xcframework.zip",
-            checksum: "4e3669364dfccb6d6634e42eae80f404488d611e95305bd32b4c6ecd5067afd6"
+            url: "https://sdk.amity.co/sdk-release/ios-uikit-frameworks/4.25.1/AmitySDK.xcframework.zip",
+            checksum: "85d6a155908834d675b73e1f31d70bfeeb8779b654d0d8d85b02f07284d150cf"
         ),
         .binaryTarget(
             name: "AmityLiveKit",
