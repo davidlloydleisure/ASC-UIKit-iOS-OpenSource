@@ -34,7 +34,10 @@ public struct AmityGroupChatPage: AmityPageView {
     public var body: some View {
         VStack(spacing: 0) {
             // MARK: Group header (tappable → settings)
+            // We have to hide header since we show our own header inside ClubLife
+            /*
             groupHeader
+            */
 
             ZStack {
                 VStack(spacing: 0) {
