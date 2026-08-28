@@ -125,9 +125,11 @@ public struct AmityGroupSettingPage: AmityPageView {
                                 // (AmityGroupChatPage). On leaving, skip past the room to land on
                                 // whatever presented it (the chat list) — independent of the host
                                 // page type, so wrapped hosts (e.g. SampleApp's HostedChatHomePage)
-                                // don't fall through to a single pop back to the chat room.
+                                // don't fall through to a single pop back to the chat room. The room
+                                // is matched through child controllers too, so hosts that embed the
+                                // page instead of pushing it directly are found as well.
                                 if let stack = navVC?.viewControllers,
-                                   let roomIndex = stack.lastIndex(where: { $0 is AmitySwiftUIHostingController<AmityGroupChatPage> }),
+                                   let roomIndex = stack.lastIndex(where: { $0.hosts(AmityGroupChatPage.self) }),
                                    roomIndex > 0 {
                                     navVC?.popToViewController(stack[roomIndex - 1], animated: true)
                                 } else {
