@@ -27,3 +27,17 @@ extension UIViewController {
         }
     }
 }
+
+extension UIViewController {
+    /// Returns `true` when the controller presents `page`, either by hosting it directly
+    /// or by embedding its hosting controller anywhere in its child hierarchy.
+    ///
+    /// Use it to locate a page on a navigation stack when the integrating app wraps the
+    /// page in its own controller instead of pushing the hosting controller itself.
+    func hosts<Page: AmityPageView>(_ page: Page.Type) -> Bool {
+        if self is AmitySwiftUIHostingController<Page> {
+            return true
+        }
+        return children.contains { $0.hosts(page) }
+    }
+}
