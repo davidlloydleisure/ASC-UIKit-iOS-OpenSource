@@ -40,7 +40,15 @@ class MessageReactionConfiguration {
     }
     
     func getReaction(withName name: String) -> AmityReactionType {
-        return availableReactions[name] ?? AmityReactionType(name: name, image: AmityIcon.Chat.unknownReaction.imageResource, accessibilityId: "unknown")
+        // In scope of APP-15151 ticket
+        // we must support backwards compatibility for previous app versions
+        let reactionName = if name == "grinning" {
+            "happy"
+        } else {
+            name
+        }
+        
+        return availableReactions[reactionName] ?? AmityReactionType(name: reactionName, image: AmityIcon.Chat.unknownReaction.imageResource, accessibilityId: "unknown")
     }
     
     func reload() {
