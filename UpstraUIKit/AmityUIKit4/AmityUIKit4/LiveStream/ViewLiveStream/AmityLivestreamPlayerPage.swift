@@ -13,6 +13,7 @@ public struct AmityLivestreamPlayerPage: AmityPageView {
     @EnvironmentObject var host: AmitySwiftUIHostWrapper
     @StateObject private var viewConfig: AmityViewConfigController
     @StateObject private var viewModel: AmityLiveStreamPlayerPageViewModel
+    @ObservedObject private var pipState = PiPState.shared
     private var displayErrorIfEnded: Bool = false
         
     public var id: PageId {
@@ -55,6 +56,7 @@ public struct AmityLivestreamPlayerPage: AmityPageView {
                 .visibleWhen(!viewModel.isLoading && (viewModel.loadingFailed || ((viewModel.room?.status == .ended || viewModel.room?.status == .recorded || viewModel.room?.status == .terminated) && displayErrorIfEnded)))
         }
         .onAppear {
+            PiPState.shared.setActiveLivestreamHost(host.controller)
             Task {
                 await viewModel.checkProductCatalogueSettings()
             }
@@ -88,7 +90,9 @@ public struct AmityLivestreamPlayerPage: AmityPageView {
     private var contentView: some View {
         switch viewModel.currentState {
         case .viewer:
-            if viewModel.room?.status == .live || viewModel.room?.status == .waitingReconnect {
+            let isThisRoomInPiP = viewModel.room.map { pipState.isPiPActive(forRoomId: $0.roomId) } ?? false
+            if viewModel.room?.status == .live || viewModel.room?.status == .waitingReconnect || viewModel.room?.status == .error || (viewModel.room?.status == .terminated && !displayErrorIfEnded) || (isThisRoomInPiP && viewModel.wasEverLive) {
+               
                 livestreamViewerView
             } else if !displayErrorIfEnded {
                 playbackPlayerView
@@ -196,6 +200,10 @@ public struct AmityLivestreamPlayerPage: AmityPageView {
                                     Task {
                                         await viewModel.updateProductTagsAPI(childPost: childPost)
                                     }
+
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                        Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastAdded.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
+                                    }
                                 }
                             } else {
                                 UIApplication.topViewController()?.dismiss(animated: true)
@@ -228,6 +236,8 @@ public struct AmityLivestreamPlayerPage: AmityPageView {
                         // Sync BE response back to manageVM
                         manageVM.taggedProducts = viewModel.taggedProducts
                         manageVM.pinnedProductId = viewModel.pinnedProductId
+
+                        Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastRemoved.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
                     }
                 }
             )
@@ -298,7 +308,7 @@ public struct AmityLivestreamPlayerPage: AmityPageView {
                 .onAppear {
                     conferenceViewModel.didCoHostLeave = { [weak viewModel] in
                         viewModel?.currentState = .viewer
-                        Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamLeftStageToast.localizedString, bottomPadding: 60)
+                        Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamLeftStageToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
                     }
                     
                     conferenceViewModel.didCoHostJoined = { [weak viewModel] success in

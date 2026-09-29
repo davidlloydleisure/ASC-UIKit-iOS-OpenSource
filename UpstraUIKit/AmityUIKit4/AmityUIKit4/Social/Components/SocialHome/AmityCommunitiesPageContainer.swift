@@ -27,9 +27,13 @@ struct AmityCommunitiesPageContainer: View {
             VStack(spacing: 0) {
                 VStack(spacing: 0) {
                     TabBarView(currentTab: $tabIndex, tabBarOptions: $tabs)
-                        .selectedTabColor(viewConfig.theme.highlightColor)
+                        .selectedTabColor(viewConfig.theme.primaryColor)
+                        .tabBarAccessibilityIDs([
+                            AccessibilityID.Social.CommunitiesTab.explore,
+                            AccessibilityID.Social.CommunitiesTab.myCommunities
+                        ])
                         .onChange(of: tabIndex) { value in
-                            
+
                         }
                         .padding(.leading, 16)
                     
@@ -47,6 +51,9 @@ struct AmityCommunitiesPageContainer: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .padding(.top, 8)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .showExploreCommunities)) { _ in
+                tabIndex = 0
             }
         }
     }

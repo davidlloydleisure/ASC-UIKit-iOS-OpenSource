@@ -77,7 +77,7 @@ public struct AmityPostContentComponent: AmityComponentView {
         self.pageId = pageId
         self.category = context.category
         self.context = context
-        self._commentCoreViewModel = StateObject(wrappedValue: CommentCoreViewModel(referenceId: post.postId, referenceType: .post, hideEmptyText: true, hideCommentButtons: false, communityId: post.targetCommunity?.communityId, loadComments: false, existingPost: post))
+        self._commentCoreViewModel = StateObject(wrappedValue: CommentCoreViewModel(referenceId: post.postId, referenceType: .post, hideEmptyText: true, hideCommentButtons: false, communityId: post.targetCommunity?.communityId, loadComments: false, existingPost: post, event: context.event))
         self._viewConfig = StateObject(wrappedValue: AmityViewConfigController(pageId: pageId, componentId: .postContentComponent))
     }
     
@@ -211,9 +211,10 @@ public struct AmityPostContentComponent: AmityComponentView {
                             .frame(width: 24, height: 24)
                     })
                     .buttonStyle(PlainButtonStyle())
+                    .accessibilityIdentifier(AccessibilityID.Social.PostMenu.button)
                     .isHidden(viewConfig.isHidden(elementId: .menuButton))
                     .bottomSheet(isShowing: $showBottomSheet, height: .contentSize, backgroundColor: Color(viewConfig.theme.backgroundColor)) {
-                        PostBottomSheetView(isShown: $showBottomSheet, post: post) { postAction in
+                        PostBottomSheetView(isShown: $showBottomSheet, post: post, toastBottomPadding: 0) { postAction in
                             
                             switch postAction {
                             case .editPost:
@@ -226,7 +227,7 @@ public struct AmityPostContentComponent: AmityComponentView {
                                 if category == .global
                                     && post.targetCommunity != nil
                                     && post.targetCommunity?.postSettings == .adminReviewPostRequired
-                                    && !post.hasModeratorPermission {
+                                    && !viewModel.canReviewPost {
                                     showEditAlert.toggle()
                                 } else {
                                     showPostEditScreen()
@@ -248,6 +249,7 @@ public struct AmityPostContentComponent: AmityComponentView {
                                     
                                     let postId = post.postId
                                     
+                                    // Feed has no bottom bar for the toast to clear
                                     let page = AmityContentReportPage(type: .post(id: postId))
                                         .updateTheme(with: viewConfig)
                                     let vc = AmitySwiftUIHostingNavigationController(rootView: page)
@@ -291,15 +293,28 @@ public struct AmityPostContentComponent: AmityComponentView {
             switch post.dataTypeInternal {
             case .text:
                 postContentTextView()
-                                
+
                 PreviewLinkView(post: post)
-                
+
+            case .event:
+                // Event post: caption (title/text) + the embedded event card.
+                // Tapping the caption opens the POST detail (the card below opens
+                // the EVENT detail).
+                postContentTextView()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        let context = Context(category: category, shouldHideTarget: hideTarget, shouldHideMenuButton: hideMenuButton)
+                        onTapAction?(context)
+                    }
+
+                PostContentEventView(post: post) { event in
+                    goToEventDetailPage(event)
+                }
+
             case .image, .video:
                 postContentTextView()
                 
                 PostContentMediaView(post: post, viewConfig: viewConfig, pageId: pageId)
-                    .frame(height: 328)
-                    .clipShape(RoundedCorner(radius: 8))
                 
             case .file:
                 EmptyView()
@@ -352,7 +367,7 @@ public struct AmityPostContentComponent: AmityComponentView {
                         .applyTextStyle(.titleBold(Color(viewConfig.theme.baseColor)))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                
+
                 // Post text content
                 if !post.text.isEmpty {
                     let tapActionContext = AmityPostContentComponent.Context(
@@ -851,13 +866,19 @@ extension AmityPostContentComponent {
             .halfSheetPresentation()
     }
     
+    private func goToEventDetailPage(_ event: AmityEvent) {
+        let eventDetailPage = AmityEventDetailPage(event: event)
+        let vc = AmitySwiftUIHostingController(rootView: eventDetailPage)
+        host.controller?.navigationController?.pushViewController(vc, animated: true)
+    }
+
     private func goToUserProfilePage(_ userId: String) {
         let context = AmityPostContentComponentBehavior.Context(component: self, userId: userId)
         AmityUIKit4Manager.behaviour.postContentComponentBehavior?.goToUserProfilePage(context: context)
     }
     
     private func goToComment(_ commentId: String, showReplyToComment: Bool = false, showReplies: Bool = false) {
-        let page = AmityPostDetailPage(id: post.postId, commentId: commentId, showReplyToComment: showReplyToComment, preloadRepliesOfComment: showReplies)
+        let page = AmityPostDetailPage(id: post.postId, commentId: commentId, showReplyToComment: showReplyToComment, preloadRepliesOfComment: showReplies, event: context?.event)
         let vc = AmitySwiftUIHostingController(rootView: page)
         host.controller?.navigationController?.pushViewController(vc, animated: true)
     }
@@ -893,18 +914,24 @@ struct PostAuthorBadge: View {
     let title: String
     
     var body: some View {
-        HStack(spacing: 3) {
-            Image(icon)
-                .resizable()
-                .frame(width: 12, height: 12)
-                .padding(.leading, 6)
-            Text(title)
-                .applyTextStyle(.captionSmall(badgeType == .moderator ? Color(viewConfig.theme.primaryColor) : Color(AmityFixedColor.shared.eventHost)))
-                .padding(.trailing, 6)
+        switch badgeType {
+        case .moderator:
+            // Shared moderator pill — single source of truth for the shield tint.
+            AmityModeratorLabelBadge(viewConfig: viewConfig, icon: icon, title: title)
+        case .host:
+            HStack(spacing: 3) {
+                Image(icon)
+                    .resizable()
+                    .frame(width: 12, height: 12)
+                    .padding(.leading, 6)
+                Text(title)
+                    .applyTextStyle(.captionSmall(Color(AmityFixedColor.shared.eventHost)))
+                    .padding(.trailing, 6)
+            }
+            .frame(height: 20)
+            .background(Color(AmityFixedColor.shared.eventHostBg))
+            .clipShape(RoundedCorner(radius: 10))
         }
-        .frame(height: 20)
-        .background(badgeType == .moderator ? Color(viewConfig.theme.primaryColor.blend(.shade3)) : Color(AmityFixedColor.shared.eventHostBg))
-        .clipShape(RoundedCorner(radius: 10))
     }
 }
 
@@ -914,21 +941,24 @@ class AmityPostContentComponentViewModel: ObservableObject {
     private let permissionChecker = CommunityPermissionChecker()
     
     @Published var hasDeletePermission: Bool = false
-    
+    /// REVIEW_COMMUNITY_POST — a reviewer's edit bypasses the admin re-approval flow.
+    @Published var canReviewPost: Bool = false
+
     var reactionBarFrame: CGRect = .zero
-    
+
     init() {}
-    
+
     func checkPermissions(post: AmityPostModel) {
         if post.isOwner {
             hasDeletePermission = true
-            return
         }
-        
-        if let communityId = post.targetCommunity?.communityId {
-            Task { @MainActor in
+
+        guard let communityId = post.targetCommunity?.communityId else { return }
+        Task { @MainActor in
+            if !post.isOwner {
                 hasDeletePermission = await CommunityPermissionChecker.hasDeleteCommunityPostPermission(communityId: communityId)
             }
+            canReviewPost = await CommunityPermissionChecker.hasReviewCommunityPostPermission(communityId: communityId)
         }
     }
     

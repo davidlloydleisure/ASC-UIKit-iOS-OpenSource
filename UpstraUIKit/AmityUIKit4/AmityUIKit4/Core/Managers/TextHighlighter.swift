@@ -218,13 +218,10 @@ class TextHighlighter {
                 
                 // Update link attribute of mention users to handle tap event
                 // SwiftUI need valid url so provide it
-                // TODO: - In scope of APP-15149 we restrict redirection
-                /*
                 var updatedAttributes = mentionAttr.attributes
                 updatedAttributes[.link] = URL(string: "\(TextHighlighter.mentionURL)\(mentionAttr.userId)")
-                 */
                 
-                attributedString.addAttributes(mentionAttr.attributes, range: mentionAttr.range)
+                attributedString.addAttributes(updatedAttributes, range: mentionAttr.range)
             }
         }
         

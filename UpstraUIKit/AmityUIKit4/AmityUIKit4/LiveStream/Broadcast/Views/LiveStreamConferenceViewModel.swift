@@ -145,6 +145,15 @@ class LiveStreamConferenceViewModel: ObservableObject {
         return internalCreatedPost
     }
     
+    /// `AmityPost` is an immutable snapshot, so the review state has to be published separately for the UI to react
+    /// when a moderator approves the post mid session.
+    @Published var isPostPendingReview: Bool = false
+    
+    private func updateCreatedPost(_ post: AmityPost?) {
+        internalCreatedPost = post
+        isPostPendingReview = post?.getFeedType() == .reviewing
+    }
+    
     private var internalCreatedRoom: AmityRoom?
     var createdRoom: AmityRoom? {
         internalCreatedRoom
@@ -318,7 +327,7 @@ class LiveStreamConferenceViewModel: ObservableObject {
                     self.internalCreatedRoom = createdEvent.room
                     Log.add(event: .info, "Room associated to event: \(internalCreatedRoom?.roomId ?? "nil")")
                     
-                    self.internalCreatedPost = createdEvent.room?.post
+                    self.updateCreatedPost(createdEvent.room?.post)
                     Log.add(event: .info, "Post associated to event: \(createdPost?.postId ?? "nil")")
                     
                 } else {
@@ -349,14 +358,14 @@ class LiveStreamConferenceViewModel: ObservableObject {
                         productTags: productTagsArray.isEmpty ? nil : productTagsArray,
                         pinnedProductId: pinnedProductId
                     )
-                    self.internalCreatedPost = post
+                    self.updateCreatedPost(post)
                     Log.add(event: .info, "Post Created: \(post.postId)")
                     
                     // Show warning if some tagged products are no longer available
                     if !productTagsArray.isEmpty {
                         let returnedTagCount = post.childrenPosts.first?.getMediaProductTags().count ?? 0
                         if returnedTagCount != productTagsArray.count {
-                            Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.postComposerProductsUnavailableToast.localizedString, bottomPadding: 60)
+                            Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.postComposerProductsUnavailableToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                         }
                     }
                 }
@@ -439,7 +448,7 @@ class LiveStreamConferenceViewModel: ObservableObject {
         
         Task { @MainActor in
             do {
-                self.internalCreatedPost = post.object
+                self.updateCreatedPost(post.object)
                 self.internalCreatedRoom = room
                 Log.add(event: .info, "Post Created: \(post.postId)")
                 
@@ -562,18 +571,18 @@ class LiveStreamConferenceViewModel: ObservableObject {
                 // Update invited co-host waiting status if invitation is rejected and co-host left from back-stage or stage
                 if event.type == .invitationRejected {
                     self?.invitedCoHost = (false, nil, false)
-                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostDeclinedToast.localizedString, bottomPadding: 60)
+                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostDeclinedToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                 } else if event.type == .invitationAccepted {
                     self?.invitedCoHost.invitationAccepted = true
-                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostAcceptedToast.localizedString, bottomPadding: 60)
+                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostAcceptedToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                 } else if event.type == .coHostStageLeft {
                     if self?.invitedCoHost.invitationAccepted == true {
-                        Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostLeftStageToast.localizedString, bottomPadding: 60)
+                        Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostLeftStageToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                     }
                     self?.invitedCoHost = (false, nil, false)
                 } else if event.type == .coHostLeft {
                     self?.invitedCoHost = (false, nil, false)
-                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostLeftToast.localizedString, bottomPadding: 60)
+                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostLeftToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                 } else if event.type == .coHostRemoved {
                     if self?.participantRole == .host {
                         self?.invitedCoHost = (false, nil, false)
@@ -606,9 +615,9 @@ class LiveStreamConferenceViewModel: ObservableObject {
         if let createdRoom, let coHostInvitation {
             do {
                 try await createdRoom.cancelInvitation(coHostInvitation.invitationId)
-                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamInvitationCancelledToast.localizedString, bottomPadding: 60)
+                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamInvitationCancelledToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
             } catch {
-                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamInvitationCancelFailedToast.localizedString, bottomPadding: 60)
+                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamInvitationCancelFailedToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
             }
         }
     }
@@ -618,9 +627,9 @@ class LiveStreamConferenceViewModel: ObservableObject {
         if let createdRoom {
             do {
                 try await roomManager.removeCohost(roomId: createdRoom.roomId, userId: userId)
-                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostRemovedToast.localizedString, bottomPadding: 60)
+                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostRemovedToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
             } catch {
-                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamRemoveCoHostFailedToast.localizedString, bottomPadding: 60)
+                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamRemoveCoHostFailedToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
             }
         }
     }
@@ -697,10 +706,13 @@ class LiveStreamConferenceViewModel: ObservableObject {
     
     func subscribePostEventAndObserve(subscribeEvent: Bool) {
         guard let createdPost else { return }
-        let livestreamPost: AmityPost
-        if let childPost = createdPost.childrenPosts.first {
-            livestreamPost = childPost
-            
+        let childPost = createdPost.childrenPosts.first
+        let livestreamPost: AmityPost = childPost ?? createdPost
+        
+        // The review state lives on the parent post, so it has to be refreshed regardless of whether
+        // a child livestream post exists. When there is no child, `livePostToken` below already
+        // observes the parent and takes over the refresh.
+        if childPost != nil {
             parentPostToken = postManager.getPost(withId: createdPost.postId).observe{ [weak self] liveObject, error in
                 guard let self, let snapshot = liveObject.snapshot else { return }
                             
@@ -714,11 +726,10 @@ class LiveStreamConferenceViewModel: ObservableObject {
                     
                     self.endLiveStream(reason: .terminated)
                 }
-                internalCreatedPost = snapshot
+                updateCreatedPost(snapshot)
             }
-        } else {
-            livestreamPost = createdPost
         }
+        
         if subscribeEvent {
             livestreamPost.subscribeEvent(.post, withCompletion: { success, error in
                 Log.add(event: .info, "Subscribing post event status: \(success) Error: \(String(describing: error))")
@@ -752,6 +763,10 @@ class LiveStreamConferenceViewModel: ObservableObject {
                 livePostToken = nil
                 
                 self.endLiveStream(reason: .terminated)
+            }
+            
+            if childPost == nil {
+                updateCreatedPost(snapshot)
             }
         }
     }

@@ -17,8 +17,11 @@ public struct AmityEmptyNewsFeedComponent: AmityComponentView {
     
     @StateObject private var viewConfig: AmityViewConfigController
     
-    public init(pageId: PageId? = nil) {
+    private let onExploreCommunities: (() -> Void)?
+    
+    public init(pageId: PageId? = nil, onExploreCommunities: (() -> Void)? = nil) {
         self.pageId = pageId
+        self.onExploreCommunities = onExploreCommunities
         self._viewConfig = StateObject(wrappedValue: AmityViewConfigController(pageId: pageId, componentId: .emptyNewsFeedComponent))
     }
     
@@ -53,7 +56,7 @@ public struct AmityEmptyNewsFeedComponent: AmityComponentView {
                     .padding(.leading, 24)
                     
                 Text(exploreCommunityButtonText)
-                    .applyTextStyle(.titleBold(Color(viewConfig.theme.backgroundColor)))
+                    .applyTextStyle(.titleBold(Color(AmityFixedColor.shared.white)))
                     .padding([.top, .bottom], 12)
                     .padding(.trailing, 24)
             }
@@ -62,6 +65,7 @@ public struct AmityEmptyNewsFeedComponent: AmityComponentView {
             .padding(.top, 17)
             .onTapGesture {
                 Log.add(event: .info, "Explore Community")
+                onExploreCommunities?()
             }
             .isHidden(viewConfig.isHidden(elementId: .exploreCommunitiesButton))
             .accessibilityIdentifier(AccessibilityID.Social.EmptyNewsFeed.exploreCommunitiesButton)

@@ -39,7 +39,7 @@ public struct AmityPendingPostContentComponent: AmityComponentView {
                 postContentView(post)
                 postProductCarouselView(post)
             
-                if viewModel.hasModeratorRole() {
+                if viewModel.canReview {
                     VStack(spacing: 16) {
                         Rectangle()
                             .fill(Color(viewConfig.theme.baseColorShade4))
@@ -122,8 +122,6 @@ public struct AmityPendingPostContentComponent: AmityComponentView {
                 postContentTextView()
                 
                 PostContentMediaView(post: post, viewConfig: viewConfig)
-                .frame(height: 328)
-                .clipShape(RoundedCorner(radius: 8))
                 
             case .file:
                 EmptyView()
@@ -160,10 +158,18 @@ public struct AmityPendingPostContentComponent: AmityComponentView {
             
             case .room:
                 roomPostContentTextView()
-                
+
                 PostContentLiveStreamView(post: post)
                     .padding([.leading, .trailing, .top], -16)
-                
+
+            case .event:
+                postContentTextView()
+
+                PostContentEventView(post: post) { event in
+                    let vc = AmitySwiftUIHostingController(rootView: AmityEventDetailPage(event: event))
+                    host.controller?.navigationController?.pushViewController(vc, animated: true)
+                }
+
             case .unknown:
                 EmptyView()
             }
@@ -401,28 +407,31 @@ public struct AmityPendingPostContentComponent: AmityComponentView {
 class AmityPendingPostContentComponentViewModel: ObservableObject {
     private let postManager = PostManager()
     private let post: AmityPostModel
-    
+
+    @Published var canReview = false
+
     init(_ post: AmityPost) {
         self.post = AmityPostModel(post: post)
+        checkReviewPermission()
     }
-    
+
+    private func checkReviewPermission() {
+        guard let communityId = post.targetCommunity?.communityId else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.canReview = await CommunityPermissionChecker.hasReviewCommunityPostPermission(communityId: communityId)
+        }
+    }
+
     func approvePost() async throws {
         try await postManager.approvePost(postId: post.postId)
     }
-    
+
     func declinePost() async throws {
         try await postManager.declinePost(postId: post.postId)
     }
-    
+
     func deletePost() async throws {
         try await postManager.deletePost(withId: post.postId)
-    }
-    
-    @MainActor
-    func hasModeratorRole() -> Bool {
-        if let communityMember = post.targetCommunity?.membership.getMember(withId: AmityUIKitManagerInternal.shared.currentUserId) {
-            return communityMember.hasModeratorRole
-        }
-        return false
     }
 }

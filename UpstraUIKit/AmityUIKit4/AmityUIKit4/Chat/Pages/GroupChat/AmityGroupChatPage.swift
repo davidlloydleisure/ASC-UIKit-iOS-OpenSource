@@ -58,7 +58,7 @@ public struct AmityGroupChatPage: AmityPageView {
                     AmityChatMessageComposeBar(viewModel: liveChatViewModel, isGroupChat: true)
                         // Visible during initial load too (Figma 12041:242294); hidden only on error/banned or when muted without permission.
                         .isHidden((messageViewModel.initialQueryState != .success && messageViewModel.initialQueryState != .loading)
-                                  || (messageViewModel.muteState != .none && !messageViewModel.hasModeratorPermission))
+                                  || messageViewModel.isComposerMuted)
                 }
             }
         }
@@ -109,7 +109,7 @@ public struct AmityGroupChatPage: AmityPageView {
                 Button {
                     navigateToSettings()
                 } label: {
-                    HStack(spacing: 12) {  // 12pt gap avatar → name
+                    HStack(spacing: 12) {  // 12pt gap avatar → name (id below: room-open anchor + settings tap target)
                         if isHeaderLoading {
                             // Skeleton avatar while channel info loads (Figma 12041:242294 → circle)
                             Circle()
@@ -162,6 +162,7 @@ public struct AmityGroupChatPage: AmityPageView {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier(AccessibilityID.Chat.GroupChatHeader.settingsButton)
 
                 Spacer()
             }
@@ -179,7 +180,7 @@ public struct AmityGroupChatPage: AmityPageView {
 
     private func navigateToSettings() {
         guard let channel = pageViewModel.channel else { return }
-        let settingsPage = AmityGroupSettingPage(channelId: channelId, isModerator: pageViewModel.isModerator)
+        let settingsPage = AmityGroupSettingPage(channelId: channelId)
         let vc = AmitySwiftUIHostingController(rootView: settingsPage)
         host.controller?.navigationController?.pushViewController(vc, animated: true)
     }
@@ -191,7 +192,6 @@ public struct AmityGroupChatPage: AmityPageView {
 final class AmityGroupChatPageViewModel: ObservableObject {
     @Published var displayName: String = ""
     @Published var avatarURL: URL?
-    @Published var isModerator: Bool = false
     @Published var channel: AmityChannel?
     @Published var isLoadingHeader: Bool = true
 
@@ -214,12 +214,8 @@ final class AmityGroupChatPageViewModel: ObservableObject {
             guard let self, let ch = obj.snapshot else { return }
             self.channel = ch
             self.displayName = ch.displayName ?? ""
-            if let urlStr = ch.getAvatarInfo()?.fileURL {
-                self.avatarURL = URL(string: urlStr)
-            }
-            let currentUserId = AmityUIKitManagerInternal.shared.client.currentUserId ?? ""
-            let roles = ch.currentMember?.roles ?? []
-            self.isModerator = roles.contains("channel-moderator")
+
+            self.avatarURL = ch.resolvedChannelAvatarURL()
             self.isLoadingHeader = false
         }
     }
