@@ -188,7 +188,7 @@ struct LiveStreamConferenceView: View {
                                                     }
                                                     UIApplication.topViewController()?.dismiss(animated: true) {
                                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                            Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastAdded.localizedString, bottomPadding: 60)
+                                                            Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastAdded.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                                                         }
                                                     }
                                                 } else {
@@ -227,9 +227,9 @@ struct LiveStreamConferenceView: View {
                                                     // Sync API response back to manageVM
                                                     manageVM.taggedProducts = viewModel.taggedProducts
                                                     manageVM.pinnedProductId = viewModel.pinnedProductId
-                                                    Toast.showToast(style: .success, message: isPinned ? AmityLocalizedStringSet.Social.productTagToastPinned.localizedString : AmityLocalizedStringSet.Social.productTagToastUnpinned.localizedString, bottomPadding: 60)
+                                                    Toast.showToast(style: .success, message: isPinned ? AmityLocalizedStringSet.Social.productTagToastPinned.localizedString : AmityLocalizedStringSet.Social.productTagToastUnpinned.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                                                 } catch {
-                                                    Toast.showToast(style: .warning, message: isPinned ? AmityLocalizedStringSet.Social.productTagToastPinFailed.localizedString : AmityLocalizedStringSet.Social.productTagToastUnpinFailed.localizedString, bottomPadding: 60)
+                                                    Toast.showToast(style: .warning, message: isPinned ? AmityLocalizedStringSet.Social.productTagToastPinFailed.localizedString : AmityLocalizedStringSet.Social.productTagToastUnpinFailed.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                                                 }
                                             }
                                         } else {
@@ -257,7 +257,7 @@ struct LiveStreamConferenceView: View {
                                                 // Sync BE response back to manageVM
                                                 manageVM.taggedProducts = viewModel.taggedProducts
                                                 manageVM.pinnedProductId = viewModel.pinnedProductId
-                                                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastRemoved.localizedString, bottomPadding: 60)
+                                                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastRemoved.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                                             }
                                         } else {
                                             // Setup phase: update locally
@@ -319,7 +319,7 @@ struct LiveStreamConferenceView: View {
                     .onChange(of: viewModel.hasSomeArchiveProduct) { hasSomeArchiveProduct in
                         if hasSomeArchiveProduct {
                             DispatchQueue.main.asyncAfter(deadline: .now()+0.5) {
-                                                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.postComposerProductsUnavailableToast.localizedString, bottomPadding: 60)
+                                                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.postComposerProductsUnavailableToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                                 viewModel.hasSomeArchiveProduct = false
                             }
                         }
@@ -335,7 +335,7 @@ struct LiveStreamConferenceView: View {
                         // Co-host: notify when permission is granted
                         if viewModel.participantRole == .coHost {
                             if isEnabled {
-                                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastCoHostManageEnabled.localizedString, bottomPadding: 60)
+                                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastCoHostManageEnabled.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                             }
                             return
                         }
@@ -409,7 +409,7 @@ struct LiveStreamConferenceView: View {
                         }
                         
                         pendingPostReviewView
-                            .visibleWhen(viewModel.createdPost?.getFeedType() == .reviewing && viewModel.currentState != .started)
+                            .visibleWhen(viewModel.isPostPendingReview && viewModel.currentState != .started)
                         
                         liveStreamStartingState
                             .visibleWhen(viewModel.currentState == .started)
@@ -448,9 +448,9 @@ struct LiveStreamConferenceView: View {
                                     Task {
                                         do {
                                             try await viewModel.unpinProductTagAPI(postId: postId)
-                                            Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastUnpinned.localizedString, bottomPadding: 60)
+                                            Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastUnpinned.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                                         } catch {
-                                            Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.productTagToastUnpinFailed.localizedString, bottomPadding: 60)
+                                            Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.productTagToastUnpinFailed.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                                         }
                                     }
                                 }
@@ -466,7 +466,7 @@ struct LiveStreamConferenceView: View {
                                             viewModel.pinnedProductId = nil
                                         }
                                         await viewModel.updateProductTagsAPI(postId: postId)
-                                        Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastRemoved.localizedString, bottomPadding: 60)
+                                        Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.productTagToastRemoved.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                                     }
                                 }
                             },
@@ -537,17 +537,10 @@ struct LiveStreamConferenceView: View {
                 Alert(title: Text(liveStreamAlert.alertState.title), message: Text(liveStreamAlert.alertState.message), primaryButton: liveStreamAlert.alertState.primaryButton, secondaryButton: liveStreamAlert.alertState.secondaryButton)
             }
         })
-        .onChange(of: networkMonitor.isConnected) { isConnected in
-            if !isConnected {
-                Toast.showToast(style: .loading, message: AmityLocalizedStringSet.Social.livestreamWaitingNetworkToast.localizedString, bottomPadding: 60, autoHide: false)
-            } else {
-                Toast.hideToastIfPresented(immediately: true)
-            }
-        }
         .onChange(of: viewModel.currentState) { newValue in
             switch newValue {
             case .ending(reason: .maxDuration):
-                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.liveStreamToastEndAtMaxDurationMessage.localizedString, bottomPadding: 60)
+                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.liveStreamToastEndAtMaxDurationMessage.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                 
             case .ended(let reason):
                 let postId = viewModel.createdPost?.postId ?? ""
@@ -563,7 +556,7 @@ struct LiveStreamConferenceView: View {
                     
                     self.dismissToPostDetailPage(postId: postId)
 
-                    Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.noInternetConnection.localizedString, bottomPadding: 60)
+                    Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.noInternetConnection.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                     
                     return
                 }
@@ -716,7 +709,8 @@ struct LiveStreamConferenceView: View {
                             .scaledToFit()
                             .frame(width: viewModel.createdEvent == nil ? 24 : 32, height: viewModel.createdEvent == nil ? 24 : 32)
                             .foregroundColor(Color.white)
-                            .circularBackground(radius: 32, color: viewModel.createdEvent == nil ? .black.opacity(0.5) : .clear)
+                            // Kept for the 32pt tap target; the close button carries no background.
+                            .circularBackground(radius: 32, color: .clear)
                             .padding(.bottom, 4)
                     }
                     
@@ -973,7 +967,7 @@ struct LiveStreamConferenceView: View {
             setupComposeBar
         } else {
             // Hide chat if it is on userfeed for now and post is in reviewing state
-            if viewModel.liveStreamChatViewModel?.isStreamer ?? false && (viewModel.createdRoom?.targetType != "community" || viewModel.createdPost?.getFeedType() == .reviewing) {
+            if viewModel.liveStreamChatViewModel?.isStreamer ?? false && (viewModel.createdRoom?.targetType != "community" || viewModel.isPostPendingReview) {
                 defaultComposeBar
             } else if let liveChatViewModel = viewModel.liveStreamChatViewModel {
                 AmityLiveStreamChatComposeBar(viewModel: liveChatViewModel)
@@ -1210,7 +1204,7 @@ struct LiveStreamConferenceView: View {
             // Show invite button if the user is main host who created the room
             // Only show when it is not user feed and post is not in reviewing state
             if viewModel.createdRoom?.creatorId == AmityUIKitManagerInternal.shared.currentUserId && viewModel.participantRole == .host &&
-                viewModel.createdRoom?.post?.targetUser == nil && viewModel.createdPost?.getFeedType() != .reviewing {
+                viewModel.createdRoom?.post?.targetUser == nil && !viewModel.isPostPendingReview {
                 Button {
                     showCoHostInviteSheet.toggle()
                 } label: {
@@ -1283,7 +1277,7 @@ struct LiveStreamConferenceView: View {
                 UIPasteboard.general.string = shareLink
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.eventInfoLinkCopied.localizedString, bottomPadding: 60)
+                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.eventInfoLinkCopied.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.broadcasterComposeBarHeight)
                 }
             }
         

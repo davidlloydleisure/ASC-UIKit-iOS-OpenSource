@@ -42,12 +42,27 @@ class AmityContentReportPageViewModel: ObservableObject {
     private let chatManager = ChatManager()
     
     let type: ContentReportType
-   
+
+    /// Height of the bottom bar under the report sheet, so the toast lands above it once this page is
+    /// dismissed. `nil` when the underlying screen has no bottom bar (standard placement).
+    let bottomBarHeight: CGFloat?
+
     @Published var selectedReason: AmityContentFlagReason?
     @Published var submissionState: ContentReportSubmissionState = .none
-    
-    init(type: ContentReportType) {
+
+    init(type: ContentReportType, bottomBarHeight: CGFloat? = nil) {
         self.type = type
+        self.bottomBarHeight = bottomBarHeight
+    }
+
+    /// Shows the report result toast above the bottom bar when a height was provided, else with the
+    /// standard placement.
+    func showResultToast(style: ToastStyle, message: String) {
+        if let bottomBarHeight = bottomBarHeight {
+            Toast.showToast(style: style, message: message, aboveBottomBarHeight: bottomBarHeight)
+        } else {
+            Toast.showToast(style: style, message: message)
+        }
     }
     
     @MainActor
@@ -73,7 +88,7 @@ class AmityContentReportPageViewModel: ObservableObject {
                 self.submissionState = .error
                 
                 let errorMessage = AmityLocalizedStringSet.Social.reportReasonErrorToastMessage.localized(arguments: type.description)
-                Toast.showToast(style: .warning, message: errorMessage)
+                showResultToast(style: .warning, message: errorMessage)
             }
         }
     }

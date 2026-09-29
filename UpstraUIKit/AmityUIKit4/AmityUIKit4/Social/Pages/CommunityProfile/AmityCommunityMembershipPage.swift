@@ -44,7 +44,7 @@ public struct AmityCommunityMembershipPage: AmityPageView {
             
             VStack(spacing: 0) {
                 TabBarView(currentTab: $tabIndex, tabBarOptions: $tabs)
-                    .selectedTabColor(viewConfig.theme.highlightColor)
+                    .selectedTabColor(viewConfig.theme.primaryColor)
                     .onChange(of: tabIndex) { value in
 
                     }   
@@ -107,6 +107,7 @@ public struct AmityCommunityMembershipPage: AmityPageView {
                         goToAddUserPage()
                     }
                 }
+                .accessibilityIdentifier(AccessibilityID.Social.CommunityMember.addMemberButton)
         }
     }
     

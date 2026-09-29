@@ -19,7 +19,8 @@ public struct AmityCommunityProfilePage: AmityPageView {
     @State private var headerComponentHeight: CGFloat = 0.0
     @State private var showStickyHeader = false
     @State private var showShareSheet = false
-    
+    @State private var hasEditCommunityPermission = false
+
     @StateObject var viewConfig: AmityViewConfigController
     @StateObject private var viewModel: CommunityProfileViewModel
     @State private var showPollSelectionView = false
@@ -129,18 +130,20 @@ public struct AmityCommunityProfilePage: AmityPageView {
                     
                     if let community = viewModel.community, community.isJoined {
                         
-                        let optionTitle = community.hasModeratorRole ? AmityLocalizedStringSet.Social.communitySettingsOptionTitle.localizedString : AmityLocalizedStringSet.Social.communityInformationOptionTitle.localizedString
-                        let optionIcon = community.hasModeratorRole ? AmityIcon.settingIcon.imageResource : AmityIcon.communityInformationIcon.imageResource
+                        let canManageCommunity = hasEditCommunityPermission
+                        let optionTitle = canManageCommunity ? AmityLocalizedStringSet.Social.communitySettingsOptionTitle.localizedString : AmityLocalizedStringSet.Social.communityInformationOptionTitle.localizedString
+                        let optionIcon = canManageCommunity ? AmityIcon.settingIcon.imageResource : AmityIcon.communityInformationIcon.imageResource
                         BottomSheetItemView(icon: optionIcon, text: optionTitle)
                             .onTapGesture {
                                 showMenuBottomSheet.toggle()
-                                
+
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                                     let context = AmityCommunityProfilePageBehavior.Context(page: self, community: viewModel.community?.object)
                                     AmityUIKitManagerInternal.shared.behavior.communityProfilePageBehavior?.goToCommunitySettingPage(context: context)
 
                                 }
                             }
+                            .accessibilityIdentifier(canManageCommunity ? AccessibilityID.Social.CommunityProfile.settingsButton : AccessibilityID.Social.CommunityProfile.infoButton)
                     }
                     
                     if canShareCommunityProfileLink() {
@@ -158,15 +161,17 @@ public struct AmityCommunityProfilePage: AmityPageView {
                                     Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.eventInfoLinkCopied.localizedString)
                                 }
                             }
-                        
+                            .accessibilityIdentifier(AccessibilityID.Social.CommunityProfile.copyLink)
+
                         BottomSheetItemView(icon: AmityIcon.shareToIcon.imageResource, text: shareLinkConfig.text ?? AmityLocalizedStringSet.Social.socialShareTo.localizedString)
                             .onTapGesture {
                                 showMenuBottomSheet.toggle()
-                                
+
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                     showShareSheet = true
                                 }
                             }
+                            .accessibilityIdentifier(AccessibilityID.Social.CommunityProfile.shareLink)
                     }
                 }
                 .padding(.bottom, 32)
@@ -187,6 +192,10 @@ public struct AmityCommunityProfilePage: AmityPageView {
         }
         .onAppear {
             host.controller?.navigationController?.isNavigationBarHidden = true
+
+            Task { @MainActor in
+                hasEditCommunityPermission = await CommunityPermissionChecker.hasEditCommunityPermission(communityId: communityId)
+            }
         }
         .sheet(isPresented: $showShareSheet) {
             let profileLink = AmityUIKitManagerInternal.shared.generateShareableLink(for: .community, id: communityId)
@@ -268,7 +277,7 @@ public struct AmityCommunityProfilePage: AmityPageView {
                 .background(Color(viewConfig.theme.primaryColor))
                 .clipShape(RoundedCorner())
                 .padding(.all, 16)
-                .isHidden(viewModel.community?.isJoined ?? false)
+                .isHidden(viewModel.joinStatus != .notJoined)
 
                 AmityCommunityProfileTabComponent(currentTab: $viewModel.currentTab, pageId: .communityProfilePage)
                 
@@ -309,6 +318,7 @@ extension AmityCommunityProfilePage {
             
         })
         .buttonStyle(BorderlessButtonStyle())
+        .accessibilityIdentifier(AccessibilityID.Social.CommunityProfile.createButton)
         .padding(.trailing, 16)
         .padding(.bottom, 8)
         .bottomSheet(isShowing: $showCreateBottomSheet, height: .contentSize, backgroundColor: Color(viewConfig.theme.backgroundColor)) {
@@ -375,6 +385,7 @@ extension AmityCommunityProfilePage {
                             AmityUIKitManagerInternal.shared.behavior.communityProfilePageBehavior?.goToEventSetupPage(context: context)
                         }
                         .isHidden(viewConfig.isHidden(elementId: .createEventButton))
+                        .accessibilityIdentifier(AccessibilityID.Event.CreateMenu.createEventButton)
                 }
             }
             .padding(.bottom, 32)
@@ -470,6 +481,7 @@ extension AmityCommunityProfilePage {
                     .onTapGesture {
                         showMenuBottomSheet.toggle()
                     }
+                    .accessibilityIdentifier(AccessibilityID.Social.CommunityProfile.menuButton)
             }
         }
         .padding(.horizontal, 16)
@@ -554,7 +566,7 @@ extension AmityCommunityProfilePage {
         let isPrivateAndHidden = !community.isPublic && !community.isDiscoverable
         
         let canMemberShareLink = !isPrivateAndHidden
-        let canModeratorShareLink = isPrivateAndHidden && community.hasModeratorRole
+        let canModeratorShareLink = isPrivateAndHidden && hasEditCommunityPermission
         
         return isShareableLinkConfigured && (canMemberShareLink || canModeratorShareLink)
     }

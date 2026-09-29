@@ -18,7 +18,10 @@ public struct AmityGroupMemberActionComponent: AmityComponentView {
     @Binding private var isPresented: Bool
 
     private let member: AmityChannelMember
-    private let isCurrentUserModerator: Bool
+    private let canPromote: Bool
+    private let canMute: Bool
+    private let canBan: Bool
+    private let canRemove: Bool
     private let isFlaggedByMe: Bool
     private let onPromote: (() -> Void)?
     private let onDemote: (() -> Void)?
@@ -31,7 +34,10 @@ public struct AmityGroupMemberActionComponent: AmityComponentView {
     public init(
         member: AmityChannelMember,
         isPresented: Binding<Bool>,
-        isCurrentUserModerator: Bool,
+        canPromote: Bool,
+        canMute: Bool,
+        canBan: Bool,
+        canRemove: Bool,
         isFlaggedByMe: Bool = false,
         pageId: PageId? = nil,
         onPromote: (() -> Void)? = nil,
@@ -44,7 +50,10 @@ public struct AmityGroupMemberActionComponent: AmityComponentView {
     ) {
         self.member = member
         self._isPresented = isPresented
-        self.isCurrentUserModerator = isCurrentUserModerator
+        self.canPromote = canPromote
+        self.canMute = canMute
+        self.canBan = canBan
+        self.canRemove = canRemove
         self.isFlaggedByMe = isFlaggedByMe
         self.pageId = pageId
         self.onPromote = onPromote
@@ -57,17 +66,21 @@ public struct AmityGroupMemberActionComponent: AmityComponentView {
         self._viewConfig = StateObject(wrappedValue: AmityViewConfigController(pageId: pageId, componentId: .groupMemberActionComponent))
     }
 
-    private var isMemberModerator: Bool {
+    // Whether the member holds the `channel-moderator` role specifically — used only to pick the
+    // Promote vs Demote label (that button toggles this exact role). NOT an effective-moderator
+    // check: a custom-role moderator returns false here yet can still moderate via permissions.
+    private var hasChannelModeratorRole: Bool {
         member.roles.contains("channel-moderator")
     }
 
     public var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
-                if isCurrentUserModerator {
-                    if isMemberModerator {
+                if canPromote {
+                    if hasChannelModeratorRole {
                         if onDemote != nil {
                             actionRow(
+                                id: AccessibilityID.Chat.GroupMemberAction.demote,
                                 icon: AmityIcon.DesignSystem.userShieldR.imageResource,
                                 label: AmityLocalizedStringSet.Chat.GroupMemberAction.demote.localizedString
                             ) {
@@ -77,6 +90,7 @@ public struct AmityGroupMemberActionComponent: AmityComponentView {
                     } else {
                         if onPromote != nil {
                             actionRow(
+                                id: AccessibilityID.Chat.GroupMemberAction.promote,
                                 icon: AmityIcon.DesignSystem.userShieldR.imageResource,
                                 label: AmityLocalizedStringSet.Chat.GroupMemberAction.promote.localizedString
                             ) {
@@ -84,25 +98,27 @@ public struct AmityGroupMemberActionComponent: AmityComponentView {
                             }
                         }
                     }
+                }
 
-                    if !isMemberModerator {
-                        if member.isMuted {
-                            if onUnmute != nil {
-                                actionRow(
-                                    icon: AmityIcon.DesignSystem.volumeR.imageResource,
-                                    label: AmityLocalizedStringSet.Chat.GroupMemberAction.unmute.localizedString
-                                ) {
-                                    onUnmute?()
-                                }
+                if canMute {
+                    if member.isMuted {
+                        if onUnmute != nil {
+                            actionRow(
+                                id: AccessibilityID.Chat.GroupMemberAction.unmute,
+                                icon: AmityIcon.DesignSystem.volumeR.imageResource,
+                                label: AmityLocalizedStringSet.Chat.GroupMemberAction.unmute.localizedString
+                            ) {
+                                onUnmute?()
                             }
-                        } else {
-                            if onMute != nil {
-                                actionRow(
-                                    icon: AmityIcon.DesignSystem.volumeSlashR.imageResource,
-                                    label: AmityLocalizedStringSet.Chat.GroupMemberAction.mute.localizedString
-                                ) {
-                                    onMute?()
-                                }
+                        }
+                    } else {
+                        if onMute != nil {
+                            actionRow(
+                                id: AccessibilityID.Chat.GroupMemberAction.mute,
+                                icon: AmityIcon.DesignSystem.volumeSlashR.imageResource,
+                                label: AmityLocalizedStringSet.Chat.GroupMemberAction.mute.localizedString
+                            ) {
+                                onMute?()
                             }
                         }
                     }
@@ -110,6 +126,7 @@ public struct AmityGroupMemberActionComponent: AmityComponentView {
 
                 if onReport != nil {
                     actionRow(
+                        id: AccessibilityID.Chat.GroupMemberAction.report,
                         icon: isFlaggedByMe
                             ? AmityIcon.DesignSystem.flagSlashR.imageResource
                             : AmityIcon.DesignSystem.flagR.imageResource,
@@ -121,24 +138,24 @@ public struct AmityGroupMemberActionComponent: AmityComponentView {
                     }
                 }
 
-                if isCurrentUserModerator {
-                    if onBan != nil {
-                        actionRow(
-                            icon: AmityIcon.DesignSystem.banR.imageResource,
-                            label: AmityLocalizedStringSet.Chat.GroupMemberAction.ban.localizedString
-                        ) {
-                            onBan?()
-                        }
+                if canBan, onBan != nil {
+                    actionRow(
+                        id: AccessibilityID.Chat.GroupMemberAction.ban,
+                        icon: AmityIcon.DesignSystem.banR.imageResource,
+                        label: AmityLocalizedStringSet.Chat.GroupMemberAction.ban.localizedString
+                    ) {
+                        onBan?()
                     }
+                }
 
-                    if onRemove != nil {
-                        actionRow(
-                            icon: AmityIcon.DesignSystem.trashR.imageResource,
-                            label: AmityLocalizedStringSet.Chat.GroupMemberAction.remove.localizedString,
-                            isDestructive: true
-                        ) {
-                            onRemove?()
-                        }
+                if canRemove, onRemove != nil {
+                    actionRow(
+                        id: AccessibilityID.Chat.GroupMemberAction.remove,
+                        icon: AmityIcon.DesignSystem.trashR.imageResource,
+                        label: AmityLocalizedStringSet.Chat.GroupMemberAction.remove.localizedString,
+                        isDestructive: true
+                    ) {
+                        onRemove?()
                     }
                 }
             }
@@ -147,7 +164,7 @@ public struct AmityGroupMemberActionComponent: AmityComponentView {
         .updateTheme(with: viewConfig)
     }
 
-    private func actionRow(icon: ImageResource, label: String, isDestructive: Bool = false, action: @escaping () -> Void) -> some View {
+    private func actionRow(id: String, icon: ImageResource, label: String, isDestructive: Bool = false, action: @escaping () -> Void) -> some View {
         Button {
             isPresented = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
@@ -170,5 +187,6 @@ public struct AmityGroupMemberActionComponent: AmityComponentView {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
     }
 }

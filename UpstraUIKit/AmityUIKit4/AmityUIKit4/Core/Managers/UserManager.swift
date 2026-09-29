@@ -15,11 +15,11 @@ class UserManager {
     let fileRepository = AmityFileRepository()
     
     func searchUsers(keyword: String) -> AmityCollection<AmityUser> {
-        userRepostiory.searchUsers(keyword, sortBy: .displayName, matchType: .partial)
+        userRepostiory.searchUsers(keyword, searchBy: [.displayName], sortBy: .displayName, matchType: .partial)
     }
 
     func searchUsers(keyword: String, sortBy: AmityUserSortOption) -> AmityCollection<AmityUser> {
-        userRepostiory.searchUsers(keyword, sortBy: sortBy)
+        userRepostiory.searchUsers(keyword, searchBy: [.displayName], sortBy: sortBy)
     }
 
     func getUsers(sortBy: AmityUserSortOption = .displayName) -> AmityCollection<AmityUser> {
@@ -29,8 +29,11 @@ class UserManager {
     func editUser(user: UserModel) async throws {
         let builder = AmityUserUpdateOptions()
         builder.setUserDescription(user.about)
-        builder.setDisplayName(user.displayName)
-        
+
+        if let displayName = user.displayName {
+            builder.setDisplayName(displayName)
+        }
+
         if let avatar = user.avatar {
             let imageData = try await fileRepository.uploadImage(avatar, progress: nil)
             builder.setAvatar(imageData)

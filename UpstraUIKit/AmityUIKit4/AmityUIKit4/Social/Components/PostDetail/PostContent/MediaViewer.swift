@@ -19,7 +19,7 @@ struct MediaViewer: View {
     @State private var dragStart: CGPoint?
     @State private var isHorizontalDragEnabled = false
     
-    // use for showing image index at top
+    // 1-based index of the frame the pager has settled on
     @State private var pageIndex: Int
     
     @StateObject private var viewModel: MediaViewerViewModel
@@ -30,9 +30,20 @@ struct MediaViewer: View {
     @State private var showAltTextComponent: Bool = false
     @State private var hasNavigatedToPostDetail: Bool = false
     @State private var selectedProductTagMedia: AmityMedia?
+
+    /// The audio choice for this player session. Held here because the per-page player's controller is
+    /// a `@StateObject` recreated on every swipe, which would reset it. Starts unmuted.
+    @State private var isPlayerMuted: Bool = false
+
+    /// skip AuthHeader for Non-Amity hosts (e.g. customer S3)
+    @State private var skipAuthHeader = false
     
     private let medias: [AmityMedia]
     private let closeAction: (() -> Void)?
+
+    /// Reports the viewed frame live, so the carousel behind the viewer keeps pace. The composer
+    /// deliberately does not wire this — it returns to the frame originally tapped.
+    private let onIndexChanged: ((Int) -> Void)?
     private var url: URL? = nil
     private var showEditAction: Bool = false
     private let fileRepositoryManager = FileRepositoryManager()
@@ -42,6 +53,10 @@ struct MediaViewer: View {
 
     private let onDelete: (() -> Void)?
     private let saveImageURL: URL?
+
+    /// A single-attachment post still reads `1 / 1`. Viewers handed one media out of a larger set
+    /// (profile media grid), or no set at all (chat bubble, avatar, poll image), show no counter.
+    private let alwaysShowsCounter: Bool
 
     @State private var bottomBarToastMessage: String = ""
     @State private var bottomBarToastStyle: ToastStyle = .success
@@ -74,11 +89,13 @@ struct MediaViewer: View {
         return canEditAltText || showViewParentPost
     }
     
-    init(medias: [AmityMedia], startIndex: Int, viewConfig: AmityViewConfigController, closeAction: (() -> Void)?, showEditAction: Bool = false, post: AmityPostModel? = nil, showViewParentPost: Bool = true, pageId: PageId? = nil) {
+
+    init(medias: [AmityMedia], startIndex: Int, viewConfig: AmityViewConfigController, closeAction: (() -> Void)?, showEditAction: Bool = false, post: AmityPostModel? = nil, showViewParentPost: Bool = true, pageId: PageId? = nil, alwaysShowsCounter: Bool = false, onIndexChanged: ((Int) -> Void)? = nil) {
         self._page = State(initialValue: Page.withIndex(startIndex))
         self._pageIndex = State(initialValue: startIndex + 1)
         self.medias = medias
         self.closeAction = closeAction
+        self.onIndexChanged = onIndexChanged
         self.viewConfig = viewConfig
         self.showEditAction = showEditAction
         self.post = post
@@ -86,6 +103,7 @@ struct MediaViewer: View {
         self.pageId = pageId
         self.onDelete = nil
         self.saveImageURL = nil
+        self.alwaysShowsCounter = alwaysShowsCounter
         self._viewModel = StateObject(wrappedValue: MediaViewerViewModel(post: post))
     }
 
@@ -96,12 +114,14 @@ struct MediaViewer: View {
         imageData.fileURL = url?.absoluteString ?? ""
         self.medias = [AmityMedia(state: .downloadableImage(imageData: imageData, placeholder: UIImage()), type: .image)]
         self.closeAction = closeAction
+        self.onIndexChanged = nil
         self.viewConfig = viewConfig
         self.post = nil
         self.showViewParentPost = true
         self.pageId = pageId
         self.onDelete = onDelete
         self.saveImageURL = saveImageURL ?? url
+        self.alwaysShowsCounter = false
         self._viewModel = StateObject(wrappedValue: MediaViewerViewModel(post: nil))
     }
     
@@ -114,8 +134,6 @@ struct MediaViewer: View {
                     .isHidden(!showScaleEffect)
                 
                 Pager(page: page, data: medias, id: \.id) { media in
-                    let showProductBadge = !media.produtTags.isEmpty && !viewModel.isPostDeleted && !viewModel.isMediaDeleted(media)
-
                     ZoomableScrollView(isZooming: $isZooming, isZoomable: media.type == .image) {
                         ZStack {
                             // Create a properly centered placeholder with maximum height using solid theme color
@@ -128,8 +146,9 @@ struct MediaViewer: View {
                             
                             
                             if media.type == .video {
-                                if let post = post {
-                                    AmityPostMediaVideoPlayer(
+                                let frameNumber = (medias.firstIndex(of: media) ?? 0) + 1
+                                // No `post` in the composer, and the player takes an optional one.
+                                AmityPostMediaVideoPlayer(
                                         pageId: pageId,
                                         post: post,
                                         playerType: .video(media),
@@ -138,20 +157,31 @@ struct MediaViewer: View {
                                             withoutAnimation {
                                                 closeAction?()
                                             }
-                                        }
+                                        },
+                                        frameIndex: frameNumber,
+                                        frameTotal: medias.count,
+                                        isMuted: $isPlayerMuted,
+                                        isActive: frameNumber == pageIndex
                                     )
+                                    .opacity((viewModel.isPostDeleted || viewModel.isMediaDeleted(media)) ? 0 : 1) // Hide when post or media is deleted
                                     .environmentObject(host)
-                                }
                             } else {
                                 
                                 // Media content layer
                                 Group {
                                     /// If the media is local file, it will load from local file path.
                                     /// When MediaViewer is used to preview attached medias in AmityComposePage, media will have localUrl.
-                                    if let url = media.localUrl {
+                                    if let localImage = media.localUIImage {
+                                        Image(uiImage: localImage)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .overlay(productTagBadge(for: media), alignment: .bottomTrailing)
+                                            .adaptiveVerticalPadding(top: 35, bottom: 35)
+                                    } else if let url = media.localUrl {
                                         Image(uiImage: media.type == .image ?  UIImage(contentsOfFile: url.path) ?? UIImage() : media.generatedThumbnailImage ?? UIImage())
                                             .resizable()
                                             .aspectRatio(contentMode: .fit)
+                                            .overlay(productTagBadge(for: media), alignment: .bottomTrailing)
                                             .adaptiveVerticalPadding(top: 35, bottom: 35)
                                     } else if let url = media.getImageURL() {
                                         URLImage(url, empty: {
@@ -159,26 +189,24 @@ struct MediaViewer: View {
                                         }, inProgress: {_ in
                                             emptyView
                                         },
-                                        failure: {_, _ in
+                                        failure: { error, _ in
                                             emptyView
+                                                .onAppear {
+                                                    if !skipAuthHeader {
+                                                        Log.warn("MediaViewer image load failed, retrying without auth header url=\(url.absoluteString) error=\(error)")
+                                                        skipAuthHeader = true
+                                                    } else {
+                                                        Log.warn("MediaViewer image load failed url=\(url.absoluteString) error=\(error)")
+                                                    }
+                                                }
                                         }, content: { image in
                                             image
                                                 .resizable()
                                                 .aspectRatio(contentMode: .fit)
-                                                .overlay(
-                                                    Group {
-                                                        if showProductBadge {
-                                                            AmityProductTagBadgeView(count: media.produtTags.count)
-                                                                .padding(.all, 12)
-                                                                .onTapGesture {
-                                                                    selectedProductTagMedia = media
-                                                                }
-                                                        }
-                                                    },
-                                                    alignment: .bottomTrailing
-                                                )
+                                                .overlay(productTagBadge(for: media), alignment: .bottomTrailing)
                                         })
-                                        .environment(\.urlImageOptions, URLImageOptions.amityOptions)
+                                        .environment(\.urlImageOptions, skipAuthHeader ? URLImageOptions.defaultImageOptions : URLImageOptions.amityOptions)
+                                        .id(skipAuthHeader)
                                         .adaptiveVerticalPadding(top: 35, bottom: 35)
                                     } else {
                                         // Add placeholder for missing image URLs - properly centered
@@ -194,7 +222,7 @@ struct MediaViewer: View {
                                 
                                 // Message and icon
                                 VStack(spacing: 16) {
-                                    Image(AmityIcon.imageNotAvailableIcon.getImageResource())
+                                    Image(media.type == .image ? AmityIcon.imageNotAvailableIcon.getImageResource() : AmityIcon.videoNotAvailableIcon.getImageResource())
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
                                         .frame(size: CGSize(width: 60, height: 60))
@@ -228,6 +256,9 @@ struct MediaViewer: View {
                 .delaysTouches(true)
                 .onPageChanged({ index in
                     pageIndex = index + 1
+                    // Report the viewed frame live so the carousel behind the viewer keeps pace and
+                    // is already settled on it when the fade-out dismiss reveals it.
+                    onIndexChanged?(index)
                 })
                 .draggingAnimation(.custom(animation: .easeIn(duration: 0.05)))
                 .background(Color.clear)
@@ -303,10 +334,15 @@ struct MediaViewer: View {
                 
                 ZStack(alignment: .center) {
                     HStack(spacing: 0) {
-                        Image(AmityIcon.circleCloseIcon.getImageResource())
+                        Image(AmityIcon.closeIcon.getImageResource())
                             .resizable()
+                            .renderingMode(.template)
                             .aspectRatio(contentMode: .fit)
-                            .frame(size: CGSize(width: 32, height: 32))
+                            .frame(size: CGSize(width: 20, height: 20))
+                            .foregroundColor(Color(viewConfig.defaultLightTheme.baseColor))
+                            .circularBackground(radius: 24, color: Color(viewConfig.defaultLightTheme.baseColorShade4))
+                            .frame(width: 32, height: 32, alignment: .leading)
+                            .contentShape(Rectangle())
                             .onTapGesture {
                                 withoutAnimation {
                                     closeAction?()
@@ -329,13 +365,13 @@ struct MediaViewer: View {
                     .padding(.horizontal, 16)
                     Text("\(pageIndex) / \(page.totalPages)")
                         .applyTextStyle(.title(.white))
-                        .isHidden(page.totalPages == 1)
+                        .isHidden(page.totalPages == 1 && !alwaysShowsCounter)
                 }
                 .adaptiveVerticalPadding(top: 20)
                 .padding(.bottom, 15)
                 .background(Color.black.opacity(0.5))
                 .transition(.opacity.combined(with: .scale))
-                .isHidden(!showScaleEffect || medias[page.index].type == .video) // Hide overlay for video media
+                .isHidden(!showScaleEffect || (medias[page.index].type == .video && !(viewModel.isPostDeleted || viewModel.isMediaDeleted(medias[page.index]))))
                 .opacity(backgroundOpacity == 1 ? 1 : 0) // Hide it when dragging
             }
         }
@@ -367,6 +403,19 @@ struct MediaViewer: View {
         }
         .overlay(bottomActionBar, alignment: .bottom)
         .showToast(isPresented: $bottomBarShowToast, style: bottomBarToastStyle, message: bottomBarToastMessage, bottomPadding: 80)
+    }
+
+    /// Overlaid on every image branch, not just the remote one: a composer attachment is a local
+    /// image, so anchoring this to `URLImage` alone left the badge off the creation-state viewer.
+    @ViewBuilder
+    private func productTagBadge(for media: AmityMedia) -> some View {
+        if !media.produtTags.isEmpty, !viewModel.isPostDeleted, !viewModel.isMediaDeleted(media) {
+            AmityProductTagBadgeView(count: media.produtTags.count, icon: .productTagFilledIcon)
+                .padding(.all, 12)
+                .onTapGesture {
+                    selectedProductTagMedia = media
+                }
+        }
     }
 
     @ViewBuilder
@@ -505,7 +554,15 @@ class MediaViewerViewModel: ObservableObject {
             forName: .didPostLocallyDeleted,
             object: nil,
             queue: .main) { [weak self] notification in
-                self?.deletedFileIds = Set(self?.post?.medias.compactMap({$0.image?.fileId}) ?? [])
+                guard let self else { return }
+                // Another post being deleted must not blank out this viewer
+                guard let deletedPostId = notification.userInfo?["postId"] as? String,
+                      deletedPostId == post?.postId else { return }
+
+                isPostDeleted = true
+                // A video carries its file id on `video`, an image on `image`. Collecting only the
+                // image ids left every video media unmatched in isMediaDeleted.
+                deletedFileIds = Set(post?.medias.compactMap({ $0.image?.fileId ?? $0.video?.fileId }) ?? [])
             }
         
         NotificationCenter.default.addObserver(

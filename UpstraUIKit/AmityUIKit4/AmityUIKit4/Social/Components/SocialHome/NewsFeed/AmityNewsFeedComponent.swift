@@ -24,8 +24,11 @@ public struct AmityNewsFeedComponent: AmityComponentView {
     @State private var pullToRefreshShowing: Bool = false
     @State private var isCurrentFeedEmpty: Bool = false
     
-    public init(pageId: PageId? = nil) {
+    private let onExploreCommunities: (() -> Void)?
+    
+    public init(pageId: PageId? = nil, onExploreCommunities: (() -> Void)? = nil) {
         self.pageId = pageId
+        self.onExploreCommunities = onExploreCommunities
         self._viewConfig = StateObject(wrappedValue: AmityViewConfigController(pageId: pageId, componentId: .newsFeedComponent))
         
         UITableView.appearance().separatorStyle = .none
@@ -36,7 +39,7 @@ public struct AmityNewsFeedComponent: AmityComponentView {
             getContentView()
                 .opacity(isCurrentFeedEmpty ? 0 : 1)
 
-            AmityEmptyNewsFeedComponent(pageId: pageId)
+            AmityEmptyNewsFeedComponent(pageId: pageId, onExploreCommunities: onExploreCommunities)
                 .opacity(isCurrentFeedEmpty ? 1 : 0)
         }
         .updateTheme(with: viewConfig)
@@ -72,7 +75,7 @@ public struct AmityNewsFeedComponent: AmityComponentView {
                     // refresh global feed
                     // swiftUI cannot update properly if we use nested Observable Object
                     // that is the reason why postFeedViewModel is not moved into viewModel
-                    postFeedViewModel.loadFeed(feedType: .globalFeed)
+                    await postFeedViewModel.loadFeedAwaitingCompletion(feedType: .globalFeed)
                 }
         } else {
             getPostListView()

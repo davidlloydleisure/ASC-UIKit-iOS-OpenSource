@@ -15,7 +15,7 @@ public struct AmityPendingPostsPage: AmityPageView {
     @StateObject private var viewConfig: AmityViewConfigController
     @StateObject private var viewModel: AmityPendingPostPageViewModel
     private let community: AmityCommunityModel
-    
+
     public var id: PageId {
         .communityPendingPostPage
     }
@@ -104,8 +104,8 @@ public struct AmityPendingPostsPage: AmityPageView {
                     .applyTextStyle(.caption(Color(viewConfig.theme.baseColorShade1)))
                     .padding([.leading, .trailing], 16)
             )
-            .isHidden(!community.hasModeratorRole)
-        
+            .isHidden(!viewModel.canReview)
+
         List {
             ForEach(Array(viewModel.posts.enumerated()), id: \.element.postId) { index, post in
                 VStack(spacing: 0) {
@@ -134,19 +134,22 @@ class AmityPendingPostPageViewModel: ObservableObject {
     @Published var posts: [AmityPost] = []
     @Published var showLoading: Bool = false
     @Published var showEmpty: Bool = false
-    
+    /// REVIEW_COMMUNITY_POST — gates the review banner (not the moderator role).
+    @Published var canReview: Bool = false
+
     private let feedManager = FeedManager()
     private let community: AmityCommunity
     private var feedCollection: AmityCollection<AmityPost>?
     var cancellables = Set<AnyCancellable>()
-    
+
     let onChange: ((Int) -> Void)?
-    
+
     init(community: AmityCommunity, onChange: ((Int) -> Void)? = nil) {
         self.community = community
         self.onChange = onChange
         getPendingCommunityFeedPosts()
-        
+        loadPermission()
+
         $posts
             .combineLatest($showLoading)
             .sink { [weak self] posts, showLoading in
@@ -154,8 +157,20 @@ class AmityPendingPostPageViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
+
+    /// Resolve the review permission. Also re-run when the pending feed loads, so it
+    /// becomes correct if the current user's community permissions sync after init.
+    func loadPermission() {
+        let communityId = community.communityId
+        Task { @MainActor [weak self] in
+            self?.canReview = await CommunityPermissionChecker.hasReviewCommunityPostPermission(communityId: communityId)
+        }
+    }
     
     func getPendingCommunityFeedPosts() {
+        /// A reload starts every carousel at frame 1 rather than restoring where it was
+        PostMediaCarouselPositionStore.shared.reset()
+
         feedCollection = feedManager.getPendingCommunityFeedPosts(communityId: community.communityId)
         feedCollection?.$snapshots
             .sink(receiveValue: { [weak self] posts in

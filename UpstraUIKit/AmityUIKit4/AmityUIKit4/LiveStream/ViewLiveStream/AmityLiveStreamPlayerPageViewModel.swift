@@ -22,13 +22,33 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
             handleStateTransition(from: oldValue, to: currentState)
         }
     }
-    @Published var showInvitedAsCoHostSheet: Bool = false
+    @Published var showInvitedAsCoHostSheet: Bool = false {
+        didSet {
+            // While the co-host invitation sheet is visible, PiP must not start
+            // (a floating window would cover the sheet / duplicate the stream).
+            // Suppresses the OS auto-start; re-enabled when the sheet dismisses.
+            PiPState.shared.setAutoPiPSuppressed(showInvitedAsCoHostSheet)
+        }
+    }
+
+    deinit {
+        if showInvitedAsCoHostSheet {
+            PiPState.shared.setAutoPiPSuppressed(false)
+        }
+    }
     
     private var roomManager = RoomManager()
     private var postManager = PostManager()
     private var invitationManager = InvitationManager()
     @Published var post: AmityPostModel?
-    @Published var room: AmityRoom?
+    @Published var room: AmityRoom? {
+        didSet {
+            if room?.status == .live || room?.status == .waitingReconnect {
+                wasEverLive = true
+            }
+        }
+    }
+    @Published private(set) var wasEverLive = false
     private var cancellable: AnyCancellable?
     
     // Watch minute tracking for role transitions
@@ -111,10 +131,10 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
                                 if let invitation, invitation.status == .pending  {
                                     self.showInvitedAsCoHostSheet = true
                                 } else if let invitation, invitation.status == .canceled ||  invitation.status == .rejected {
-                                    Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamInvitationNoLongerValid.localizedString, bottomPadding: 60)
+                                    Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamInvitationNoLongerValid.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
                                 }
                               else if isCohostInvited, invitation == nil {
-                                    Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamInvitationNoLongerValid.localizedString, bottomPadding: 60)
+                                    Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamInvitationNoLongerValid.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
                                 }
                             }
                         }
@@ -156,12 +176,12 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
                 // we can assume that the current user is co-host if they are in backstage
                 if event.type == .coHostRemoved && self?.currentState == .inBackstage {
                     self?.currentState = .viewer
-                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamLeftStageToast.localizedString, bottomPadding: 60)
+                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamLeftStageToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
                 }
                 
                 // Display co-host left toast if the user is a viewer when co-host left
                 if event.type == .coHostLeft && self?.currentState == .viewer && event.room.status == .live {
-                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostLeftToast.localizedString, bottomPadding: 60)
+                    Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamCoHostLeftToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
                 }
                 
                 // Ensure the invitation is for the current user since BE is sending events to all users in the room
@@ -173,7 +193,16 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
                 // Handle UI state accordingly
                 if event.type == .invitationInvited {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    
+
+                    // The co-host invitation sheet is about to show on this page —
+                    // close any floating window so it doesn't cover the sheet or
+                    // duplicate the stream. Only while in the foreground: an invite
+                    // arriving while the user watches in background PiP must not
+                    // kill their playback.
+                    if UIApplication.shared.applicationState == .active {
+                        PiPState.shared.stopActivePiPForExcludedSurface()
+                    }
+
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         self?.showInvitedAsCoHostSheet = true
                     }
@@ -191,7 +220,7 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
                 try await self.coHostInvitation?.accept()
                 self.currentState = .inBackstage
             } catch {
-                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamAcceptInvitationFailed.localizedString, bottomPadding: 60)
+                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamAcceptInvitationFailed.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
             }
         }
     }
@@ -201,9 +230,9 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
             do {
                 self.showInvitedAsCoHostSheet = false
                 try await self.coHostInvitation?.reject()
-                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamInvitationDeclinedToast.localizedString, bottomPadding: 60)
+                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamInvitationDeclinedToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
             } catch {
-                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamDeclineInvitationFailed.localizedString, bottomPadding: 60)
+                Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.livestreamDeclineInvitationFailed.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
             }
         }
     }
@@ -211,7 +240,7 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
     func leaveRoom() {
         Task.runOnMainActor {
             do {
-                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamLeftStageToast.localizedString, bottomPadding: 60)
+                Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.livestreamLeftStageToast.localizedString, aboveBottomBarHeight: AmityLiveStreamChatViewModel.viewerComposeBarHeight)
                 try await self.roomManager.leaveRoom(roomId: self.room?.roomId ?? "")
             } catch {
                 Log.add(event: .error, "Error when levaing the room: \(error.localizedDescription)")
@@ -230,6 +259,10 @@ public class AmityLiveStreamPlayerPageViewModel: ObservableObject {
             // Stop tracking when user becomes co-host
             watchMinuteTracker.stopTracking()
             Log.add(event: .info, "Watch tracking stopped: User became co-host")
+
+            // Backstage/co-host is a broadcaster surface — excluded from PiP.
+            // Close any floating window carried over from the viewer session.
+            PiPState.shared.stopActivePiPForExcludedSurface()
         }
         
         // User returned to viewer (left co-host role)

@@ -197,8 +197,11 @@
 				Core/CustomViewModifiers/ShakeEffect.swift,
 				Core/CustomViews/ActivityIndicatorView.swift,
 				Core/CustomViews/AmityButtonStyle.swift,
+				Core/CustomViews/AmityCheckboxSelectedIndicator.swift,
+				Core/CustomViews/AmityModeratorBadge.swift,
 				Core/CustomViews/AmityNavigationBar.swift,
 				Core/CustomViews/AmityPopoverMenu.swift,
+				Core/CustomViews/AmityRadioSelectedIndicator.swift,
 				Core/CustomViews/AmityTextEditorView.swift,
 				Core/CustomViews/AsyncImage.swift,
 				Core/CustomViews/BottomSheetDragIndicator.swift,
@@ -426,6 +429,7 @@
 				Core/Extenral/VideoPlayer/GSPlayer/Classes/View/VideoFullscreenTransitioner.swift,
 				Core/Extenral/VideoPlayer/GSPlayer/Classes/View/VideoPlayerView.swift,
 				Core/Extenral/VideoPlayer/VideoPlayer.swift,
+				"Core/Extensions/AmityChannel+AvatarResolution.swift",
 				"Core/Extensions/AmityChannel+Extension.swift",
 				"Core/Extensions/AmityCommunityMember+Extension.swift",
 				"Core/Extensions/AmityCommunityNotificaitonSettings+Extension.swift",
@@ -454,6 +458,7 @@
 				Core/Localization/QALocaleVerification.swift,
 				Core/Managers/CommentManager.swift,
 				Core/Managers/CommunityManager.swift,
+				Core/Managers/CuratedContentManager.swift,
 				Core/Managers/EventCalendarManager.swift,
 				Core/Managers/EventManager.swift,
 				Core/Managers/FeedManager.swift,
@@ -474,6 +479,7 @@
 				Core/Managers/StreamManager.swift,
 				Core/Managers/TextHighlighter.swift,
 				Core/Managers/UserManager.swift,
+				Core/Networking/AmityUIKitNetworkCapture.swift,
 				Core/Protocols/AmityComponentView.swift,
 				Core/Protocols/AmityElementView.swift,
 				Core/Protocols/AmityPageView.swift,
@@ -485,10 +491,12 @@
 				Core/Utilities/AmityDesignSystemIcon.generated.swift,
 				Core/Utilities/AmityFileCache.swift,
 				Core/Utilities/AmityIcon.swift,
+				Core/Utilities/AmityInAppBrowser.swift,
 				Core/Utilities/AmityLocalizedStringSet.swift,
 				Core/Utilities/AmityPreviewLinkWizard.swift,
 				Core/Utilities/AmitySwiftUIHostWrapper.swift,
 				Core/Utilities/AmityUserAction.swift,
+				Core/Utilities/BuildInfo.swift,
 				Core/Utilities/ConfigControllers/AmityColorTokenResolver.swift,
 				Core/Utilities/ConfigControllers/AmityColorTokens.generated.swift,
 				Core/Utilities/ConfigControllers/AmityTheme.swift,
@@ -501,6 +509,9 @@
 				Core/Utilities/ImpactFeedbackGenerator.swift,
 				Core/Utilities/KeyboardHelper.swift,
 				Core/Utilities/Log.swift,
+				Core/Utilities/Media/MediaAspectRatio.swift,
+				Core/Utilities/Media/MediaDimensionResolver.swift,
+				Core/Utilities/Media/PostMediaCap.swift,
 				Core/Utilities/MessageReactionConfiguration.swift,
 				Core/Utilities/NetworkMonitor.swift,
 				Core/Utilities/PermissionChecker.swift,
@@ -568,8 +579,11 @@
 				LiveStream/LiveChat/Components/AmityLiveStreamChatViewModel.swift,
 				LiveStream/LiveStreamAlert.swift,
 				LiveStream/Shared/Component/ManageProductTagListComponent.swift,
+				LiveStream/Shared/Element/LiveStreamChatBylineView.swift,
 				LiveStream/Shared/Element/LivestreamPinnedProductElement.swift,
+				LiveStream/Shared/Element/LiveViewerCountElement.swift,
 				LiveStream/Shared/Element/ManageProductTagElement.swift,
+				LiveStream/Shared/Element/PinnedMessageBannerView.swift,
 				LiveStream/Shared/Element/ProductTaggingButtonElement.swift,
 				LiveStream/ViewLiveStream/AmityLivestreamPlayerPage.swift,
 				LiveStream/ViewLiveStream/AmityLiveStreamPlayerPageViewModel.swift,
@@ -577,6 +591,8 @@
 				LiveStream/ViewLiveStream/LiveStreamViewerViewModel.swift,
 				LiveStream/ViewLiveStream/Player/LiveStreamPlaybackPlayerView.swift,
 				LiveStream/ViewLiveStream/Player/LiveStreamPlayerView.swift,
+				LiveStream/ViewLiveStream/Player/PiP/AmityPipController.swift,
+				LiveStream/ViewLiveStream/Player/PiP/PiPEligibility.swift,
 				LiveStream/ViewLiveStream/Player/RecordedStreamPlayerView.swift,
 				LiveStream/ViewLiveStream/WatchMinuteTracker.swift,
 				PrivacyInfo.xcprivacy,
@@ -587,6 +603,7 @@
 				Social/Behaviors/AmityCommunitySearchResultComponentBehavior.swift,
 				Social/Behaviors/AmityCommunitySettingPageBehavior.swift,
 				Social/Behaviors/AmityCommunitySetupPageBehavior.swift,
+				Social/Behaviors/AmityDiscoveryWidgetComponentBehavior.swift,
 				Social/Behaviors/AmityCreatePostMenuComponentBehavior.swift,
 				Social/Behaviors/AmityGlobalFeedComponentBehavior.swift,
 				Social/Behaviors/AmityJoinRequestContentComponentBehavior.swift,
@@ -622,6 +639,21 @@
 				Social/Components/CommunityProfile/EmptyCommunityFeedView.swift,
 				Social/Components/CommunityProfile/MediaFeedViewModel.swift,
 				Social/Components/CommunityProfile/PrivateCommunityFeedView.swift,
+				Social/Components/DiscoveryWidget/AmityDiscoveryWidgetComponent.swift,
+				Social/Components/DiscoveryWidget/Card/AmityDiscoveryWidgetPostCardComponent.swift,
+				Social/Components/DiscoveryWidget/Card/DiscoveryWidgetCardHeaderView.swift,
+				Social/Components/DiscoveryWidget/Card/DiscoveryWidgetCardMediaView.swift,
+				Social/Components/DiscoveryWidget/Card/DiscoveryWidgetCardTextView.swift,
+				Social/Components/DiscoveryWidget/Card/DiscoveryWidgetEngagementBarView.swift,
+				Social/Components/DiscoveryWidget/Card/DiscoveryWidgetLinkPreviewView.swift,
+				Social/Components/DiscoveryWidget/Card/Poll/DiscoveryWidgetPollImageOptionView.swift,
+				Social/Components/DiscoveryWidget/Card/Poll/DiscoveryWidgetPollResults.swift,
+				Social/Components/DiscoveryWidget/Card/Poll/DiscoveryWidgetPollTextOptionView.swift,
+				Social/Components/DiscoveryWidget/Card/Poll/DiscoveryWidgetPollView.swift,
+				Social/Components/DiscoveryWidget/DiscoveryWidgetHeaderView.swift,
+				Social/Components/DiscoveryWidget/DiscoveryWidgetLayout.swift,
+				Social/Components/DiscoveryWidget/DiscoveryWidgetSkeletonView.swift,
+				Social/Components/DiscoveryWidget/DiscoveryWidgetViewModel.swift,
 				Social/Components/ImageFeedComponent.swift,
 				Social/Components/PendingRequests/AmityJoinRequestContentComponent.swift,
 				Social/Components/PendingRequests/AmityPendingPostListComponent.swift,
@@ -636,7 +668,11 @@
 				Social/Components/PostDetail/PostContent/Livestream/PostContentLiveStreamView.swift,
 				Social/Components/PostDetail/PostContent/MediaViewer.swift,
 				Social/Components/PostDetail/PostContent/PostBottomSheetView.swift,
+				Social/Components/PostDetail/PostContent/PostContentEventView.swift,
 				Social/Components/PostDetail/PostContent/PostContentMediaView.swift,
+				Social/Components/PostDetail/PostContent/PostMediaCarouselView.swift,
+				Social/Components/PostDetail/PostContent/PostMediaFrameView.swift,
+				Social/Components/PostDetail/PostContent/PostMediaPaginationIndicator.swift,
 				Social/Components/PostDetail/PostContentSkeletonView.swift,
 				Social/Components/Products/ProductTagList/Components/AmityProductTagListComponent.swift,
 				Social/Components/Products/ProductTagList/Elements/AmityProductTagElement.swift,
@@ -756,6 +792,9 @@
 				Social/Pages/PostCreation/PostComposer/AmityPostComposerPage.swift,
 				Social/Pages/PostCreation/PostComposer/AmityPostComposerViewModel.swift,
 				Social/Pages/PostCreation/PostCreationMediaAttachmentPreviewView.swift,
+				Social/Pages/PostCreation/SelectedMediaCarouselView.swift,
+				Social/Pages/PostCreation/SelectedMediaFrameView.swift,
+				Social/Pages/PostCreation/TargetSelection/AmityEventPostTargetSelectionPage.swift,
 				Social/Pages/PostCreation/TargetSelection/AmityLivestreamPostTargetSelectionPage.swift,
 				Social/Pages/PostCreation/TargetSelection/AmityPollTargetSelectionPage.swift,
 				Social/Pages/PostCreation/TargetSelection/AmityPostTargetSelectionPage.swift,
@@ -947,6 +986,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 684AE1052B0C5B0200FD7270 /* Build configuration list for PBXNativeTarget "AmityUIKit4" */;
 			buildPhases = (
+				68BBCC012EA7100000000002 /* Generate BuildInfo.swift */,
 				684AE0EC2B0C5B0200FD7270 /* Headers */,
 				684AE0ED2B0C5B0200FD7270 /* Sources */,
 				684AE0EE2B0C5B0200FD7270 /* Frameworks */,
@@ -959,7 +999,7 @@
 			);
 			name = AmityUIKit4;
 			packageProductDependencies = (
-				705BE5EAF8B9A5B6B19071AC /* SharedFrameworks */,
+				43B9BF6605EEC90E8087152D /* SharedFrameworks */,
 			);
 			productName = AmityUIKit4;
 			productReference = 684AE0F12B0C5B0200FD7270 /* AmityUIKit4.framework */;
@@ -1011,7 +1051,7 @@
 			);
 			mainGroup = 684AE0E72B0C5B0100FD7270;
 			packageReferences = (
-				8DA632EAB0D62AA06E5D7BD6 /* XCLocalSwiftPackageReference "SharedFrameworks" */,
+				49A70DBD007E7A93E6C5954F /* XCLocalSwiftPackageReference "SharedFrameworks" */,
 			);
 			preferredProjectObjectVersion = 56;
 			productRefGroup = 684AE0F22B0C5B0200FD7270 /* Products */;
@@ -1056,6 +1096,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# Copy non-English lproj bundles into the framework output.\n# Xcode's File System Synchronized Group handles en.lproj automatically,\n# but additional lproj directories need explicit copying.\nLOCALIZATION_DIR=\"${SRCROOT}/AmityUIKit4/Core/Localization\"\nFRAMEWORK_DIR=\"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.framework\"\n\nfor LPROJ in \"${LOCALIZATION_DIR}\"/*.lproj; do\n  LANG=$(basename \"$LPROJ\")\n  if [ \"$LANG\" != \"en.lproj\" ] && [ \"$LANG\" != \"Base.lproj\" ]; then\n    mkdir -p \"${FRAMEWORK_DIR}/${LANG}\"\n    cp -R \"${LPROJ}/\"* \"${FRAMEWORK_DIR}/${LANG}/\"\n    echo \"Copied ${LANG} to framework bundle\"\n  fi\ndone\n";
+		};
+		68BBCC012EA7100000000002 /* Generate BuildInfo.swift */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate BuildInfo.swift";
+			outputPaths = (
+				"$(SRCROOT)/AmityUIKit4/Core/Utilities/BuildInfo.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Generates BuildInfo.swift with the UIKit version and the current git commit hash.\nGIT_HASH=$(git -C \"${SRCROOT}\" rev-parse --short HEAD 2>/dev/null)\nif [ -z \"${GIT_HASH}\" ]; then GIT_HASH=\"unknown\"; fi\n\nVERSION=$(/usr/libexec/PlistBuddy -c \"Print CFBundleShortVersionString\" \"${SRCROOT}/../UpstraUIKit/Info.plist\" 2>/dev/null)\nif [ -z \"${VERSION}\" ]; then VERSION=\"unknown\"; fi\n\nOUTPUT_FILE=\"${SRCROOT}/AmityUIKit4/Core/Utilities/BuildInfo.swift\"\nTMP_FILE=$(mktemp)\n\ncat > \"${TMP_FILE}\" << EOF\n// You can safely ignore the content of this file. All content is generated automatically from run script.\nenum BuildInfo {\n    static let version = \"${VERSION}\"\n    static let gitHash = \"${GIT_HASH}\"\n}\nEOF\n\n# Only overwrite when the content changed, so incremental builds do not recompile needlessly.\nif cmp -s \"${TMP_FILE}\" \"${OUTPUT_FILE}\"; then\n    rm -f \"${TMP_FILE}\"\nelse\n    mv \"${TMP_FILE}\" \"${OUTPUT_FILE}\"\n    chmod 644 \"${OUTPUT_FILE}\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1151,6 +1207,7 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				VERSIONING_SYSTEM = "apple-generic";
 				VERSION_INFO_PREFIX = "";
+				__DIAGNOSE_INVALID_DEPLOYMENT_TARGET_AS_ERROR = NO;
 			};
 			name = Debug;
 		};
@@ -1210,6 +1267,7 @@
 				VALIDATE_PRODUCT = YES;
 				VERSIONING_SYSTEM = "apple-generic";
 				VERSION_INFO_PREFIX = "";
+				__DIAGNOSE_INVALID_DEPLOYMENT_TARGET_AS_ERROR = NO;
 			};
 			name = Release;
 		};
@@ -1353,16 +1411,16 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		8DA632EAB0D62AA06E5D7BD6 /* XCLocalSwiftPackageReference "SharedFrameworks" */ = {
+		49A70DBD007E7A93E6C5954F /* XCLocalSwiftPackageReference "SharedFrameworks" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../SharedFrameworks;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		705BE5EAF8B9A5B6B19071AC /* SharedFrameworks */ = {
+		43B9BF6605EEC90E8087152D /* SharedFrameworks */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 8DA632EAB0D62AA06E5D7BD6 /* XCLocalSwiftPackageReference "SharedFrameworks" */;
+			package = 49A70DBD007E7A93E6C5954F /* XCLocalSwiftPackageReference "SharedFrameworks" */;
 			productName = SharedFrameworks;
 		};
 /* End XCSwiftPackageProductDependency section */

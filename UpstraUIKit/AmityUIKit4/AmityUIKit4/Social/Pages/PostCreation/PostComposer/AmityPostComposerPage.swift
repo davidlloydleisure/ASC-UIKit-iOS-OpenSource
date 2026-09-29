@@ -30,6 +30,10 @@ public enum AmityPostComposerOptions {
                        targetType: AmityPostTargetType,
                        community: AmityCommunityModel?,
                        event: AmityEvent? = nil)
+    /// Creates an event post (`dataType: "event"`) referencing `event`, prefilled from it.
+    case createEventPostOptions(event: AmityEvent,
+                                targetId: String?,
+                                targetType: AmityPostTargetType)
 }
 
 public struct AmityPostComposerPage: AmityPageView {
@@ -40,7 +44,7 @@ public struct AmityPostComposerPage: AmityPageView {
     }
     
     @State private var mediaAttatchmentComponentYOffset: CGFloat = 0.0
-    @State private var showSmallComponent: Bool = false
+    @State private var showSmallComponent: Bool = true
     @StateObject private var viewConfig: AmityViewConfigController
     @StateObject private var viewModel: AmityPostComposerViewModel
     @StateObject private var textEditorViewModel: AmityTextEditorViewModel
@@ -49,6 +53,7 @@ public struct AmityPostComposerPage: AmityPageView {
     @State private var failedToastAlphaValue = 0.0
     @State private var showDismissAlert: Bool = false
     @State private var isLoading: Bool = false
+    @State private var didConfirmReview: Bool = false
     @State private var areAttachmentsReady: Bool = true
     @State private var keyboardHeight: CGFloat = .zero
     private let options: AmityPostComposerOptions
@@ -79,6 +84,9 @@ public struct AmityPostComposerPage: AmityPageView {
     }
     
     var placeholderText: String {
+        if viewModel.isEventPost {
+            return AmityLocalizedStringSet.Social.eventPostComposerBodyPlaceholder.localizedString
+        }
         switch viewModel.mode {
         case .createClip:
             return AmityLocalizedStringSet.Social.postComposerBodyClipPlaceholder.localizedString
@@ -128,6 +136,18 @@ public struct AmityPostComposerPage: AmityPageView {
                 wrappedValue: AmityMediaAttachmentViewModel(medias: [], isPostEditing: false))
             self._viewConfig = StateObject(
                 wrappedValue: AmityViewConfigController(pageId: .postComposerPage))
+
+        case .createEventPostOptions(let event, let targetId, let targetType):
+            self._viewModel = StateObject(
+                wrappedValue: AmityPostComposerViewModel(
+                    targetId: targetId, targetType: targetType, community: nil, mode: .create, event: event, isEventPost: true))
+            self._textEditorViewModel = StateObject(
+                wrappedValue: AmityTextEditorViewModel(
+                    mentionManager: MentionManager(withType: .post(communityId: targetId))))
+            self._mediaAttatchmentViewModel = StateObject(
+                wrappedValue: AmityMediaAttachmentViewModel(medias: [], isPostEditing: false))
+            self._viewConfig = StateObject(
+                wrappedValue: AmityViewConfigController(pageId: .postComposerPage))
         }
     }
     
@@ -135,22 +155,26 @@ public struct AmityPostComposerPage: AmityPageView {
     
     public var body: some View {
         ZStack(alignment: .bottom) {
-            VStack {
+            VStack{
                 navigationBarView
                 
                 ScrollView {
-                    
+                  VStack(alignment: .leading, spacing: 0) {
+
                     clipPreview
-                    
-                    ExpandableTextEditorView(isTextEditorFocused: .constant(false), input: $viewModel.postTitle)
-                        .placeholder(AmityLocalizedStringSet.Social.postComposerTitlePlaceholder.localizedString)
-                        .font(AmityTextStyle.titleBold(.clear).getFont())
-                        .placeholderColor(Color(viewConfig.theme.baseColorShade2))
-                        .textColor(Color(viewConfig.theme.baseColor))
-                        .lineLimit(10)
-                        .maxCharCount(viewModel.postTitleMaxCount)
-                        .disableNewlines(true)
-                        .padding(.horizontal, 4)
+
+                    // Clip composer has no title field — caption only.
+                    if !viewModel.isInClipComposerMode {
+                        ExpandableTextEditorView(isTextEditorFocused: .constant(false), input: $viewModel.postTitle)
+                            .placeholder(AmityLocalizedStringSet.Social.postComposerTitlePlaceholder.localizedString)
+                            .font(AmityTextStyle.titleBold(.clear).getFont())
+                            .placeholderColor(Color(viewConfig.theme.baseColorShade2))
+                            .textColor(Color(viewConfig.theme.baseColor))
+                            .lineLimit(10)
+                            .maxCharCount(viewModel.postTitleMaxCount)
+                            .disableNewlines(true)
+                            .padding(.horizontal, 4)
+                    }
                     
                     AmityMessageTextEditorView(
                         textEditorViewModel,
@@ -159,6 +183,7 @@ public struct AmityPostComposerPage: AmityPageView {
                         mentionedUsers: $viewModel.mentionedUsers,
                         links: $viewModel.links,
                         textViewHeight: getTextEditorHeight(for: viewModel.postText)
+                        
                     )
                     .placeholder(viewModel.postText.isEmpty ? placeholderText : "")
                     .maxExpandableHeight(99999)
@@ -166,9 +191,10 @@ public struct AmityPostComposerPage: AmityPageView {
                     .enableLinkHighlight(true)
                     .scrollEnabled(false)
                     .maxHashtagCount(30)
-                    .enableProductMention(viewModel.isProductCatalogueEnabled)
+                    .enableProductMention(viewModel.isProductCatalogueEnabled && !viewModel.isEventPost)
+                    .calculateSuggestionViewHeight(false)
                     .characterLimit(viewModel.isInClipComposerMode ? clipCaptionMaxCount : 0)
-                    .padding(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                    .padding(EdgeInsets(top: 8, leading: 16, bottom: 16, trailing: 16))
                     .onChange(of: viewModel.postText) { _ in
                         guard textEditorViewModel.textView.isFirstResponder,
                               keyboardHeight > 0 else { return }
@@ -241,11 +267,25 @@ public struct AmityPostComposerPage: AmityPageView {
                             .padding(.vertical, 16)
                     }
 
-                    if !viewModel.isInClipComposerMode {
+                    if !viewModel.isInClipComposerMode && !viewModel.isEventPost {
                         PostCreationMediaAttachmentPreviewView(postComposerViewModel: viewModel, viewModel: mediaAttatchmentViewModel)
                             .contentShape(Rectangle())
                             .padding(.bottom, 60)
                     }
+
+                    // Event post: the event card is the post's payload — preview it here.
+                    if viewModel.isEventPost {
+                        Group {
+                            if let event = viewModel.event {
+                                PostContentEventView(event: event)
+                            } else if let post = viewModel.post {
+                                PostContentEventView(post: post)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                  }
+                  .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .onChange(of: mediaAttatchmentViewModel.medias) { medias in
                     if !medias.isEmpty && !viewModel.didRemoveLinkPreview {
@@ -308,15 +348,6 @@ public struct AmityPostComposerPage: AmityPageView {
 //                .background(Color(viewConfig.theme.backgroundColor))
 //                .isHidden(viewModel.mentionedUsers.count == 0, remove: true)
                 
-                // Product Tag Button
-                HStack {
-                    Spacer()
-                    productTagButton
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 12)
-                }
-                .isHidden(viewModel.isInClipComposerMode)
-
                 // Media Attatchment View
                 VStack(spacing: 5) {
                     BottomSheetDragIndicator()
@@ -324,10 +355,14 @@ public struct AmityPostComposerPage: AmityPageView {
 
                     if showSmallComponent {
                         AmityMediaAttachmentComponent(
-                            viewModel: mediaAttatchmentViewModel, pageId: id)
+                            viewModel: mediaAttatchmentViewModel,
+                            pageId: id,
+                            onProductTagTap: { presentProductTagList() })
                     } else {
                         AmityDetailedMediaAttachmentComponent(
-                            viewModel: mediaAttatchmentViewModel, pageId: id)
+                            viewModel: mediaAttatchmentViewModel,
+                            pageId: id,
+                            onProductTagTap: { presentProductTagList() })
                     }
                 }
                 .onReceive(keyboardPublisher) { keyboardEvent in
@@ -373,7 +408,7 @@ public struct AmityPostComposerPage: AmityPageView {
                             }
                         }
                 )
-                .isHidden(viewModel.isInClipComposerMode)
+                .isHidden(viewModel.isInClipComposerMode || viewModel.isEventPost)
             }
         }
         .background(Color(viewConfig.theme.backgroundColor).ignoresSafeArea())
@@ -401,48 +436,21 @@ public struct AmityPostComposerPage: AmityPageView {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 24, height: 24)
             }
+            // The enclosing VStack is leading-aligned for the event card; the clip
+            // thumbnail centers itself.
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 8)
         }
     }
 
-    @ViewBuilder
-    var productTagButton: some View {
-        let productTagCount = viewModel.productTags.count
-        if productTagCount > 0 {
-            Button {
-                let component = AmityProductTagListComponent(pageId: .postComposerPage,
-                                                             productTags: viewModel.productTags,
-                                                             sourceId: "") // No postId yet during composition
-
-                let vc = AmitySwiftUIHostingController(rootView: component)
-                host.controller?.present(vc, animated: true)
-            } label: {
-                ZStack(alignment: .topTrailing) {
-                    // Tag icon button
-                    Circle()
-                        .fill(Color(viewConfig.theme.backgroundShade1Color))
-                        .frame(width: 40, height: 40)
-                        .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 4)
-                        .overlay(
-                            Image(AmityIcon.LiveStream.emptyProductTaggingIcon.imageResource)
-                                .renderingMode(.template)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 32, height: 28)
-                                .foregroundColor(Color(viewConfig.theme.baseColor))
-                        )
-
-                    // Badge with count
-                    Text("\(productTagCount)")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(Color(viewConfig.theme.backgroundShade1Color))
-                        .frame(minWidth: 16, minHeight: 16)
-                        .circularBackground(radius: 20, color: Color(viewConfig.theme.baseColor))
-                        .offset(x: 4, y: -4)
-                }
-            }
-        }
+    private func presentProductTagList() {
+        let component = AmityProductTagListComponent(pageId: .postComposerPage,
+                                                     productTags: viewModel.productTags,
+                                                     sourceId: "") // No postId yet during composition
+        let vc = AmitySwiftUIHostingController(rootView: component)
+        host.controller?.present(vc, animated: true)
     }
-    
+
     @ViewBuilder
     private var navigationBarView: some View {
         let editPageTitle = viewConfig.forElement(.editPostTitle).text ?? AmityLocalizedStringSet.Social.editPost.localizedString
@@ -459,6 +467,7 @@ public struct AmityPostComposerPage: AmityPageView {
                     .scaledToFit()
                     .foregroundColor(Color(viewConfig.theme.baseColor))
                     .frame(width: 24, height: 24)
+                    .padding(.leading, 8)
                     .onTapGesture {
                         dismissComposer()
                     }
@@ -467,14 +476,14 @@ public struct AmityPostComposerPage: AmityPageView {
             let createPostButtonTitle = viewConfig.forElement(.createNewPostButton).text ?? AmityLocalizedStringSet.General.post.localizedString
             let editPostButtonTitle = viewConfig.forElement(.editPostButton).text ?? AmityLocalizedStringSet.Social.saveButton.localizedString
             
-            let hasContent = !viewModel.postText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !mediaAttatchmentViewModel.medias.isEmpty || viewModel.isInClipComposerMode
+            let hasContent = !viewModel.postText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !mediaAttatchmentViewModel.medias.isEmpty || viewModel.isInClipComposerMode || viewModel.isEventPost
             let canCreatePost = hasContent && !isLoading && mediaAttatchmentViewModel.areAttachmentsReady
             
             let hasChanges = viewModel.hasPostChanges(currentTitle: viewModel.postTitle, currentText: viewModel.postText, currentMedias: mediaAttatchmentViewModel.medias)
             let canEditPost = hasContent && hasChanges && !isLoading && mediaAttatchmentViewModel.areAttachmentsReady
             
-            let createButtonColor = canCreatePost ? Color(viewConfig.theme.primaryColor) : Color(viewConfig.theme.primaryColor.blend(.shade2))
-            let editButtonColor = canEditPost ? Color(viewConfig.theme.baseColor) : Color(viewConfig.theme.baseColor.blend(.shade2))
+            let createButtonColor = Color(viewConfig.theme.primaryColor.withAlphaComponent(canCreatePost ? 1.0 : 0.3))
+            let editButtonColor = Color(viewConfig.theme.primaryColor.withAlphaComponent(canEditPost ? 1.0 : 0.3))
                         
             Button(viewModel.isInCreateMode ? createPostButtonTitle : editPostButtonTitle) {
                 processPost()
@@ -524,7 +533,18 @@ public struct AmityPostComposerPage: AmityPageView {
     
     func getErrorMessage(error: Error) -> String {
         let maxCharLimit = 50_000
-        
+
+        // Event post uses its own failure copy (stay in composer, show toast).
+        if viewModel.isEventPost {
+            if error.isAmityErrorCode(.banWordFound) {
+                return AmityLocalizedStringSet.Social.eventPostBlockedWordToast.localizedString
+            } else if error.isAmityErrorCode(.linkNotAllowed) {
+                return AmityLocalizedStringSet.Social.eventPostBlockedLinkToast.localizedString
+            } else {
+                return AmityLocalizedStringSet.Social.eventPostCreateFailedToast.localizedString
+            }
+        }
+
         var message =
         viewModel.isInCreateMode
         ? AmityLocalizedStringSet.Social.postCreateError.localizedString
@@ -664,7 +684,36 @@ public struct AmityPostComposerPage: AmityPageView {
         }
     }
 
-    private func executePostCreation() {
+    /// An edit in a review-gated community is held for moderator approval, so the user
+    /// confirms before it leaves the composer. Moderators bypass review.
+    private var needsReviewConfirmation: Bool {
+        guard !viewModel.isInCreateMode, let post = viewModel.post,
+              post.targetCommunity != nil else { return false }
+        return post.targetCommunity?.postSettings == .adminReviewPostRequired && !viewModel.canReviewPost
+    }
+
+    private func showReviewConfirmationAlert() {
+        let alert = UIAlertController(
+            title: AmityLocalizedStringSet.Social.postEditSentForReviewTitle.localizedString,
+            message: AmityLocalizedStringSet.Social.postEditSentForReviewMessage.localizedString,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: AmityLocalizedStringSet.General.cancel.localizedString, style: .cancel))
+        alert.addAction(UIAlertAction(title: AmityLocalizedStringSet.Chat.okButton.localizedString, style: .default) { _ in
+            didConfirmReview = true
+            executePostCreation(skipReviewConfirmation: true)
+        })
+
+        host.controller?.present(alert, animated: true)
+    }
+
+    private func executePostCreation(skipReviewConfirmation: Bool = false) {
+        if !skipReviewConfirmation && needsReviewConfirmation {
+            showReviewConfirmationAlert()
+            return
+        }
+
         isLoading = true
 
         Task { @MainActor in
@@ -736,20 +785,32 @@ public struct AmityPostComposerPage: AmityPageView {
 
                 isLoading = false
 
+                let isSentForReview = post?.getFeedType() == .reviewing
+
+                // Already confirmed on the composer, so report the outcome as a toast
+                // instead of a second modal.
+                let wasConfirmed = didConfirmReview
+
                 host.controller?.navigationController?.dismiss(animated: true, completion: {
+                    // A toast replaces any toast already on screen, so show only one.
                     if showProductTagWarning {
                         Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.postComposerProductsUnavailableToast.localizedString)
+                    } else if isSentForReview && wasConfirmed {
+                        Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.postEditSentForReviewToast.localizedString)
                     }
-                    if post?.getFeedType() == .reviewing {
+                    if isSentForReview && !wasConfirmed {
                         let title = isInCreateMode ? AmityLocalizedStringSet.Social.postComposerPostsSentForReviewTitle.localizedString : AmityLocalizedStringSet.Social.postComposerPostUpdatesSentForReviewTitle.localizedString
                         let message = isInCreateMode ? AmityLocalizedStringSet.Social.postComposerPostSentForReviewMessage.localizedString : AmityLocalizedStringSet.Social.postComposerPostUpdateSentForReviewMessage.localizedString
-                        
+
                         let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
-                        
+
                         let okAction = UIAlertAction(title: AmityLocalizedStringSet.Chat.okButton.localizedString, style: .cancel)
                         alertController.addAction(okAction)
-                        
+
                         UIApplication.topViewController()?.present(alertController, animated: true)
+                    } else if viewModel.isEventPost && isInCreateMode {
+                        // Success toast shown over the event detail after the flow dismisses.
+                        Toast.showToast(style: .success, message: AmityLocalizedStringSet.Social.eventPostCreatedToast.localizedString)
                     }
                 })
                 

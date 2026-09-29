@@ -44,7 +44,9 @@ enum AmityIcon: String, ImageResourceProvider {
     case hyperLinkIcon = "hyperLinkIcon"
     case hyperLinkBlueIcon = "hyperLinkBlueIcon"
     case trashBinRedIcon = "trashBinRedIcon"
+    // Ringed variant reads correctly on dark surfaces; the plain one is used in light mode.
     case likeReactionIcon = "socialReactionLike"
+    case likeReactionPlainIcon = "likeReactionIcon"
     
     // AmityViewStoryPage Icons
     case verifiedWhiteBadge = "verifiedWhiteBadge"
@@ -63,6 +65,7 @@ enum AmityIcon: String, ImageResourceProvider {
     case replyArrowIcon = "replyArrowIcon"
     case deletedMessageIcon = "deletedMessageIcon"
     case editCommentIcon = "editCommentIcon"
+    case editPostEvent = "editPostEvent"
     case moderatorBadgeIcon = "moderatorBadgeIcon"
     case commentFailedIcon = "failedCommentIcon"
     
@@ -341,8 +344,9 @@ enum AmityIcon: String, ImageResourceProvider {
     case eventAttendeeIcon = "eventAttendeeIcon"
     case eventRSVPBellIcon = "eventRSVPBellIcon"
     case tagIcon = "tagIcon"
+    case productTagFilledIcon = "productTagFilledIcon"
     case livestreamPostPlayerActionButton = "livestream_post_player_action_button"
-    case postPlayerActionButton = "post_player_action_button"
+    case postPlayerActionButton = "video_post_player_action_button"
     case notiLiveBadge = "noti_live_badge"
     
     // Livestream icons
@@ -369,6 +373,8 @@ enum AmityIcon: String, ImageResourceProvider {
         case productTagImagePlaceholderIcon = "productTagImagePlaceholderIcon"
         case livestreamPinProductIcon = "livestreamPinProductIcon"
         case livestreamFilledPinProductIcon = "livestreamFilledPinProductIcon"
+        case pinnedLivestreamMessage = "pinned_livestream_message"
+        case unpinnedLivestreamMessage = "unpinned_livestream_message"
         case livestreamAddThumbnailButtonIcon = "livestreamAddThumbnailButtonIcon"
         case playIcon = "ic_play"
         case pauseIcon = "ic_pause"

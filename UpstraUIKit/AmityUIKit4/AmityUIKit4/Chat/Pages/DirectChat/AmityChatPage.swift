@@ -49,9 +49,7 @@ final class AmityChatPageViewModel: ObservableObject {
             guard let self, let ch = obj.snapshot else { return }
             if ch.channelType != .conversation {
                 self.displayName = ch.displayName ?? ""
-                if let urlStr = ch.getAvatarInfo()?.fileURL {
-                    self.avatarURL = URL(string: urlStr)
-                }
+                self.avatarURL = ch.resolvedChannelAvatarURL()
             }
             self.isMuted = ch.isMuted
         }
@@ -222,7 +220,7 @@ public struct AmityChatPage: AmityPageView {
                         AmityChatMessageComposeBar(viewModel: liveChatViewModel)
                             // Visible during initial load too (Figma 12041:242294); hidden only on error/banned or when muted without permission.
                             .isHidden((messageViewModel.initialQueryState != .success && messageViewModel.initialQueryState != .loading)
-                                      || (messageViewModel.muteState != .none && !messageViewModel.hasModeratorPermission))
+                                      || messageViewModel.isComposerMuted)
                     }
                 }
             }
