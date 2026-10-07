@@ -32,6 +32,11 @@ public struct AmityGroupChatPage: AmityPageView {
     }
 
     public var body: some View {
+        AmityModuleGateView(pageId: .groupChatPage) { gatedBody }
+    }
+
+    @ViewBuilder
+    private var gatedBody: some View {
         VStack(spacing: 0) {
             // MARK: Group header (tappable → settings)
             // We have to hide header since we show our own header inside ClubLife
@@ -85,7 +90,12 @@ public struct AmityGroupChatPage: AmityPageView {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 Button {
-                    host.controller?.navigationController?.popViewController(animated: true)
+                    if let nav = host.controller?.navigationController,
+                       nav.viewControllers.count > 1 {
+                        nav.popViewController(animated: true)
+                    } else {
+                        host.controller?.dismissOrPop()
+                    }
                 } label: {
                     Image(AmityIcon.DesignSystem.chevronLeft.imageResource)
                         .renderingMode(.template)
