@@ -40,10 +40,12 @@ class MessageReactionConfiguration {
     }
     
     func getReaction(withName name: String) -> AmityReactionType {
-        // In scope of APP-15151 ticket
+        // In scope of APP-15151, APP-15690 ticket
         // we must support backwards compatibility for previous app versions
         let reactionName = if name == "grinning" {
             "happy"
+        } else if name == "heart" {
+            "love"
         } else {
             name
         }
