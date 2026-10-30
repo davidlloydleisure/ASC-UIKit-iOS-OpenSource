@@ -36,7 +36,7 @@ public struct AmityPostDetailPage: AmityPageView {
         self.context = AmityPostContentComponent.Context(event: event)
         self._viewModel = StateObject(wrappedValue: postDetailViewModel)
         self._commentCoreViewModel = StateObject(wrappedValue: CommentCoreViewModel(referenceId: id, referenceType: .post, hideEmptyText: true, hideCommentButtons: false, communityId: postDetailViewModel.post?.targetCommunity?.communityId, targetCommentId: commentId, targetCommentParentId: parentId, rootCommentId: rootCommentId, preloadRepliesOfComment: preloadRepliesOfComment, event: event))
-        self._commentComposerViewModel = StateObject(wrappedValue: CommentComposerViewModel(referenceId: id, referenceType: .post, community: postDetailViewModel.post?.targetCommunity, allowCreateComment: true))
+        self._commentComposerViewModel = StateObject(wrappedValue: CommentComposerViewModel(referenceId: id, referenceType: .post, community: postDetailViewModel.post?.targetCommunity, allowCreateComment: !(postDetailViewModel.post?.isClubUpdate ?? false)))
         self._viewConfig = StateObject(wrappedValue: AmityViewConfigController(pageId: .postDetailPage))
         
         let bottomSheetVM = CommentBottomSheetViewModel()
@@ -49,7 +49,7 @@ public struct AmityPostDetailPage: AmityPageView {
         self.context = context
         self._viewModel = StateObject(wrappedValue: AmityPostDetailPageViewModel(post: post))
         self._commentCoreViewModel = StateObject(wrappedValue: CommentCoreViewModel(referenceId: post.postId, referenceType: .post, hideEmptyText: true, hideCommentButtons: false, communityId: post.targetCommunity?.communityId, event: context?.event))
-        self._commentComposerViewModel = StateObject(wrappedValue: CommentComposerViewModel(referenceId: post.postId, referenceType: .post, community: post.targetCommunity, allowCreateComment: true))
+        self._commentComposerViewModel = StateObject(wrappedValue: CommentComposerViewModel(referenceId: post.postId, referenceType: .post, community: post.targetCommunity, allowCreateComment: !AmityPostModel.isClubUpdate(metadata: post.metadata)))
         self._viewConfig = StateObject(wrappedValue: AmityViewConfigController(pageId: .postDetailPage))
         
         let bottomSheetVM = CommentBottomSheetViewModel()
@@ -99,6 +99,9 @@ public struct AmityPostDetailPage: AmityPageView {
                         CommentCoreView(headerView: {
                             VStack(spacing: 4) {
                                 if let postModel = viewModel.post {
+                                    if postModel.isClubUpdate {
+                                        ClubUpdatePostHost(post: postModel, style: .detail, pageId: id) {}
+                                    } else {
                                     AmityPostContentComponent(post: postModel.object, style: .detail, context: getPostComponentContext(), onTapAction: { tapContext in
 
                                         if postModel.dataTypeInternal == .clip, tapContext?.isClipPost == true {
@@ -112,9 +115,14 @@ public struct AmityPostDetailPage: AmityPageView {
                                             }
                                         }
                                     }, pageId: id)
-                                    Rectangle()
-                                        .fill(Color(viewConfig.theme.baseColorShade4))
-                                        .frame(height: 1)
+                                    }
+                                    // The rule introduces the comment list, which a Club
+                                    // Update does not have.
+                                    if !postModel.isClubUpdate {
+                                        Rectangle()
+                                            .fill(Color(viewConfig.theme.baseColorShade4))
+                                            .frame(height: 1)
+                                    }
                                 } else {
                                     PostContentSkeletonView()
                                 }
@@ -176,6 +184,14 @@ public struct AmityPostDetailPage: AmityPageView {
         }
         .background(Color(viewConfig.theme.backgroundColor).ignoresSafeArea())
         .updateTheme(with: viewConfig)
+        .onReceive(viewModel.$post) { post in
+            // This page can open from a post id alone, so the post is often unknown at
+            // init. Re-resolve once it arrives, or a Club Update opened from a
+            // notification would still offer a composer.
+            let isClubUpdate = post?.isClubUpdate ?? false
+            commentComposerViewModel.allowCreateComment = !isClubUpdate
+            commentCoreViewModel.isCommentingDisabled = isClubUpdate
+        }
         .onChange(of: networkMonitor.isConnected) { isConnected in
             if !isConnected {
                 Toast.showToast(style: .warning, message: AmityLocalizedStringSet.Social.noInternetConnection.localizedString)

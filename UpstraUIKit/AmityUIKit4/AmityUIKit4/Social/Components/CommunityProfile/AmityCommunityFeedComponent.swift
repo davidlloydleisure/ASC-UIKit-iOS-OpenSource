@@ -86,9 +86,18 @@ public struct AmityCommunityFeedComponent: AmityComponentView {
                             
                             VStack(spacing: 0) {
                                 let category: AmityPostCategory = communityProfileViewModel.pinnedPosts.contains(where: {$0.postId == post.postId}) ? .pin : .general
-                                AmityPostContentComponent(post: post.object, category: category, hideTarget: true, onTapAction: { postContext in
-                                    handlePostTap(model: post, context: postContext)
-                                }, pageId: pageId)
+                                Group {
+                                    if post.isClubUpdate {
+                                        ClubUpdatePostHost(post: post, pageId: pageId) {
+                                            handlePostTap(model: post, context: nil)
+                                        }
+                                        .background(Color(viewConfig.theme.baseColorShade4))
+                                    } else {
+                                        AmityPostContentComponent(post: post.object, category: category, hideTarget: true, onTapAction: { postContext in
+                                            handlePostTap(model: post, context: postContext)
+                                        }, pageId: pageId)
+                                    }
+                                }
                                 .contentShape(Rectangle())
                                 .background(GeometryReader { geometry in
                                     Color.clear

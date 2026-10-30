@@ -10,6 +10,9 @@ import UIKit
 import SwiftUI
 
 public class AmityPostModel: Identifiable {
+
+    static let clubUpdateMetadataKey = "dlPostKind"
+    static let clubUpdateMetadataValue = "clubUpdate"
     
     /// The unique identifier for the post
     public let postId: String
@@ -69,6 +72,14 @@ public class AmityPostModel: Identifiable {
     /// The post is group member flag
     public var isGroupMember: Bool {
         return targetCommunity?.isJoined ?? false
+    }
+
+    public var isClubUpdate: Bool {
+        AmityPostModel.isClubUpdate(metadata: metadata)
+    }
+
+    public static func isClubUpdate(metadata: [String: Any]?) -> Bool {
+        metadata?[clubUpdateMetadataKey] as? String == clubUpdateMetadataValue
     }
     
     /// The post user data of the post

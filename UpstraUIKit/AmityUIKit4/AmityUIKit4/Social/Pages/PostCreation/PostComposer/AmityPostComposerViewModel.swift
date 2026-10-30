@@ -59,6 +59,10 @@ class AmityPostComposerViewModel: ObservableObject {
     private let originalMediaProductTagIds: [String: [String]]
     
     @Published var canReviewPost: Bool = false
+    
+    @Published var isClubUpdate: Bool = false
+    @Published private(set) var canCreateClubUpdate: Bool = false
+    
     @Published var didRemoveLinkPreview = false
     @Published var previewedLink: LinkDetail? // The link being previewed in composer
     @Published var links: [LinkDetail]? = []
@@ -119,6 +123,7 @@ class AmityPostComposerViewModel: ObservableObject {
         
         self.observeLinkChanges()
         self.getProductCatalogueFeatureSetting()
+        self.loadClubUpdatePermission(communityId: targetType == .community ? targetId : nil)
     }
     
     // Edit mode
@@ -169,9 +174,12 @@ class AmityPostComposerViewModel: ObservableObject {
         self.textProductTags = post.textProductTags ?? []
         self.productTags = getCombinedTags(medias: post.medias)
 
+        self.isClubUpdate = post.isClubUpdate
+
         self.observeLinkChanges()
         self.getProductCatalogueFeatureSetting()
         self.loadReviewPermission()
+        self.loadClubUpdatePermission(communityId: post.targetCommunity?.communityId)
     }
 
     /// Resolve REVIEW_COMMUNITY_POST for the edited post's community — a reviewer's edit
@@ -181,6 +189,24 @@ class AmityPostComposerViewModel: ObservableObject {
         Task { @MainActor [weak self] in
             self?.canReviewPost = await CommunityPermissionChecker.hasReviewCommunityPostPermission(communityId: communityId)
         }
+    }
+
+    /// Resolve CREATE_PRIVILEGED_POST for the target community — only a club admin or
+    /// moderator may publish a Club Update.
+    private func loadClubUpdatePermission(communityId: String?) {
+        guard let communityId else { return }
+        Task { @MainActor [weak self] in
+            self?.canCreateClubUpdate = await CommunityPermissionChecker.hasCreatePrivilegedPostPermission(communityId: communityId)
+        }
+    }
+
+    /// Adds the Club Update flag to the metadata the SDK built.
+    private func applyingClubUpdateFlag(to metadata: [String: Any]) -> [String: Any] {
+        guard isClubUpdate else { return metadata }
+
+        var metadata = metadata
+        metadata[AmityPostModel.clubUpdateMetadataKey] = AmityPostModel.clubUpdateMetadataValue
+        return metadata
     }
 
     func observeLinkChanges() {
@@ -349,7 +375,7 @@ class AmityPostComposerViewModel: ObservableObject {
         
         let mentions = AmityMetadataMapper.mentions(fromMetadata: mentionData.metadata ?? [:])
         let hashtags = hashtags.map { AmityHashtag(text: $0.text, index: $0.range.location, length: $0.range.length)}
-        let metadata = AmityMetadataMapper.metadata(mentions: mentions, hashtags: hashtags)
+        let metadata = applyingClubUpdateFlag(to: AmityMetadataMapper.metadata(mentions: mentions, hashtags: hashtags))
         let textProductTags = textProductTags?.map { AmityTextProductTag(productId: $0.productId, index: $0.range.location, length: $0.range.length)}
 
         if isEventPost, let event {
@@ -543,7 +569,7 @@ class AmityPostComposerViewModel: ObservableObject {
         
         let mentions = AmityMetadataMapper.mentions(fromMetadata: mentionData.metadata ?? [:])
         let hashtags = hashtags.map { AmityHashtag(text: $0.text, index: $0.range.location, length: $0.range.length)}
-        let metadata = AmityMetadataMapper.metadata(mentions: mentions, hashtags: hashtags)
+        let metadata = applyingClubUpdateFlag(to: AmityMetadataMapper.metadata(mentions: mentions, hashtags: hashtags))
         
         let hashtagBuilder = AmityHashtagBuilder()
         hashtagBuilder.hashtags(hashtags: hashtags.map { $0.text })

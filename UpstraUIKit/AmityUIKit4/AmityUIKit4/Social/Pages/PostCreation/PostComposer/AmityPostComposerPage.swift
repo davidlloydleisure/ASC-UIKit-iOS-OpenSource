@@ -239,6 +239,8 @@ public struct AmityPostComposerPage: AmityPageView {
                         }
                     }
                     
+                    clubUpdateToggle
+
                     if let link = viewModel.previewedLink, !viewModel.didRemoveLinkPreview, mediaAttatchmentViewModel.medias.isEmpty {
                         PreviewLinkView(viewModel: self.viewModel.previewLinkViewModel)
                             .overlay(
@@ -413,6 +415,23 @@ public struct AmityPostComposerPage: AmityPageView {
         }
         .background(Color(viewConfig.theme.backgroundColor).ignoresSafeArea())
         .updateTheme(with: viewConfig)
+    }
+    
+    @ViewBuilder
+    private var clubUpdateToggle: some View {
+        if viewModel.canCreateClubUpdate, !viewModel.isEventPost, !viewModel.isInClipComposerMode {
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(isOn: $viewModel.isClubUpdate) {
+                    Text(AmityLocalizedStringSet.Social.clubUpdateComposerToggleTitle.localizedString)
+                        .applyTextStyle(.bodyBold(Color(viewConfig.theme.baseColor)))
+                }
+                .tint(Color(viewConfig.theme.primaryColor))
+
+                Text(AmityLocalizedStringSet.Social.clubUpdateComposerToggleDescription.localizedString)
+                    .applyTextStyle(.caption(Color(viewConfig.theme.baseColorShade1)))
+            }
+            .padding(EdgeInsets(top: 0, leading: 16, bottom: 16, trailing: 16))
+        }
     }
     
     @ViewBuilder
