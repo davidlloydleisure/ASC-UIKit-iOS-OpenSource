@@ -19,6 +19,9 @@ open class AmityUIKitBehaviour {
     public var storyTargetSelectionPageBehaviour: AmityStoryTargetSelectionPageBehaviour?
     public var commentTrayComponentBehavior: AmityCommentTrayComponentBehavior?
     
+    // MARK: - Club Update
+    public var clubUpdatePostRenderer: AmityClubUpdatePostRenderer?
+
     // MARK: - Social
     public var socialHomePageBehavior: AmitySocialHomePageBehavior?
     public var myCommunitiesComponentBehavior: AmityMyCommunitiesComponentBehavior?

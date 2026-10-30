@@ -149,24 +149,34 @@ public struct AmityNewsFeedComponent: AmityComponentView {
                         case .content(let post):
                             
                             VStack(spacing: 0){
-                                AmityPostContentComponent(post: post.object, category: post.isPinned ? .global : .general, onTapAction: { tapContext in
-
-                                    if post.dataTypeInternal == .clip, tapContext?.isClipPost == true {
-                                        
-                                        if let media = post.medias.first, let mediaURL = URL(string: media.clip?.fileURL ?? "") {
-                                            let clipPost = ClipPost(id: post.postId, url: mediaURL, model: post)
-                                            let provider = GlobalFeedClipService(clipPost: clipPost)
-                                            let feedPage = AmityClipFeedPage(provider: provider)
-                                            let hostingView = AmitySwiftUIHostingController(rootView: feedPage)
-                                            
-                                            self.host.controller?.navigationController?.pushViewController(hostingView, animated: true)
+                                Group {
+                                    if post.isClubUpdate {
+                                        ClubUpdatePostHost(post: post, pageId: pageId) {
+                                            let context = AmityNewsFeedComponentBehavior.Context(component: self, post: post, showPollResult: false)
+                                            AmityUIKitManagerInternal.shared.behavior.newsFeedComponentBehavior?.goToPostDetailPage(context: context)
                                         }
-                                        
+                                        .background(Color(viewConfig.theme.baseColorShade4))
                                     } else {
-                                        let context = AmityNewsFeedComponentBehavior.Context(component: self, post: post, showPollResult: tapContext?.showPollResults ?? false)
-                                        AmityUIKitManagerInternal.shared.behavior.newsFeedComponentBehavior?.goToPostDetailPage(context: context)
+                                        AmityPostContentComponent(post: post.object, category: post.isPinned ? .global : .general, onTapAction: { tapContext in
+                                            
+                                            if post.dataTypeInternal == .clip, tapContext?.isClipPost == true {
+                                                
+                                                if let media = post.medias.first, let mediaURL = URL(string: media.clip?.fileURL ?? "") {
+                                                    let clipPost = ClipPost(id: post.postId, url: mediaURL, model: post)
+                                                    let provider = GlobalFeedClipService(clipPost: clipPost)
+                                                    let feedPage = AmityClipFeedPage(provider: provider)
+                                                    let hostingView = AmitySwiftUIHostingController(rootView: feedPage)
+                                                    
+                                                    self.host.controller?.navigationController?.pushViewController(hostingView, animated: true)
+                                                }
+                                                
+                                            } else {
+                                                let context = AmityNewsFeedComponentBehavior.Context(component: self, post: post, showPollResult: tapContext?.showPollResults ?? false)
+                                                AmityUIKitManagerInternal.shared.behavior.newsFeedComponentBehavior?.goToPostDetailPage(context: context)
+                                            }
+                                        }, pageId: pageId)
                                     }
-                                }, pageId: pageId)
+                                }
                                 .contentShape(Rectangle())
                                 .background(GeometryReader { geometry in
                                     Color.clear

@@ -1118,6 +1118,9 @@
 "post_sent_for_review_alert_message" = "Your post has been submitted to the pending list. It will be published once approved by the community moderator.";
 "amity_post_composer_loading_updating" = "Updating...";
 "amity_post_composer_title_placeholder" = "Title (Optional)";
+"amity_club_update_composer_toggle_title" = "Post as Club Update";
+"amity_club_update_composer_toggle_description" = "Members can read this update but cannot react or comment on it.";
+"amity_club_update_badge" = "Club Update";
 "amity_post_composer_body_placeholder" = "What's going on...";
 "amity_post_composer_body_clip_placeholder" = "What's going on? (optional)";
 "amity_post_composer_posts_sent_for_review_title" = "Posts sent for review";

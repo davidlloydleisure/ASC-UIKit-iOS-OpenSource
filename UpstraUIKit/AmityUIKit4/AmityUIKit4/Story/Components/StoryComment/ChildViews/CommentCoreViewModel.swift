@@ -26,6 +26,7 @@ class CommentCoreViewModel: ObservableObject {
     let referenceType: AmityCommentReferenceType
     let hideEmptyText: Bool
     @Published var hideCommentButtons: Bool
+    @Published var isCommentingDisabled: Bool = false
     
     private var paginatorCancellable: AnyCancellable?
     
@@ -94,6 +95,7 @@ class CommentCoreViewModel: ObservableObject {
                 self.post = AmityPostModel(post: localPost)
                 self.targetMembershipStatus = PostTargetMembershipStatus.determineStatus(isJoined: post?.targetCommunity?.isJoined)
             }
+            self.isCommentingDisabled = self.post?.isClubUpdate ?? false
         } else if referenceType == .story {
             if let localStory = storyManager.getStory(withId: referenceId).snapshot {
                 self.story = AmityStoryModel(story: localStory)

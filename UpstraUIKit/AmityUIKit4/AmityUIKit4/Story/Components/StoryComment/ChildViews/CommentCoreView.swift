@@ -27,7 +27,8 @@ struct CommentCoreView<Content>: View where Content:View {
     /// count and the button and left every comment on the post still
     /// readable. The composer asks for itself (`CommentComposerView.isShown`).
     private var commentEnabled: Bool {
-        AmityUIKitConfigController.shared.isFeatureEnabled(AmityUIKitFeature.comment)
+        guard !viewModel.isCommentingDisabled else { return false }
+        return AmityUIKitConfigController.shared.isFeatureEnabled(AmityUIKitFeature.comment)
     }
 
     var body: some View {
